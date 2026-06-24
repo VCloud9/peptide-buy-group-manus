@@ -59,7 +59,7 @@ export default function Home() {
         <div className="container h-14 flex items-center justify-between">
           <span className="flex items-center gap-2">
             <FlaskConical size={18} className="text-primary" />
-            <span className="gradient-text font-bold text-base">PeptideBuy</span>
+            <span className="font-bold text-base text-foreground">PeptideBuy</span>
           </span>
           <div className="flex items-center gap-3">
             {!loading && (
@@ -87,7 +87,7 @@ export default function Home() {
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight">
             Research Peptides,<br />
-            <span className="gradient-text">Bought Together.</span>
+            <span className="text-accent">Bought Together.</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             A private group buying platform for the peptide research community. Pool purchasing power, 

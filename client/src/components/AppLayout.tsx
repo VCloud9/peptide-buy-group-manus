@@ -95,7 +95,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
           <Link href={isAdmin && showAdmin ? "/admin" : "/dashboard"}>
             <span className="flex items-center gap-2 font-semibold text-sm tracking-tight">
               <FlaskConical size={18} className="text-primary" />
-              <span className="gradient-text font-bold text-base">PeptideBuy</span>
+              <span className="font-bold text-base text-foreground">PeptideBuy</span>
             </span>
           </Link>
 
@@ -107,8 +107,8 @@ export function AppLayout({ children, showAdmin = false }: Props) {
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
                     location === item.href || location.startsWith(item.href + "/")
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   )}
                 >
                   {item.icon}
@@ -119,7 +119,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
             {/* Switch between member/admin */}
             {isAdmin && (
               <Link href={showAdmin ? "/dashboard" : "/admin"}>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors">
                   <Zap size={16} />
                   {showAdmin ? "Member View" : "Admin"}
                 </span>
