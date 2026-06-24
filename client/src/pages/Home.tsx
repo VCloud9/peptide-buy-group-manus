@@ -80,6 +80,14 @@ export default function Home() {
       <section className="relative overflow-hidden grid-bg">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background pointer-events-none" />
         <div className="relative container py-24 md:py-32 text-center space-y-6">
+          {/* Hero logo lockup */}
+          <div className="flex justify-center mb-4">
+            <img
+              src="/manus-storage/pbg-logo_eb506b81.png"
+              alt="Peptide Buy Group"
+              className="h-16 md:h-20 w-auto"
+            />
+          </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-2">
             <ShieldCheck size={12} />
             Closed Community — Verified Members Only

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, Download, FlaskConical, Package, Pencil, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { ChevronLeft, Download, FileDown, FlaskConical, Package, Pencil, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -294,6 +294,52 @@ export default function AdminBuyDetail() {
 
           {/* ── Orders Tab ────────────────────────────────────────────────── */}
           <TabsContent value="orders" className="space-y-3 mt-4">
+            {/* CSV Export */}
+            {orders && orders.length > 0 && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    const rows: string[][] = [
+                      ["Member Name", "Email", "Status", "Total Amount", "Items", "Tracking Number", "Carrier",
+                       "Ship To Name", "Address 1", "Address 2", "City", "State", "Zip", "Country", "Order Date"],
+                    ];
+                    (orders as any[]).forEach((o) => {
+                      const items = (o.items ?? []).map((i: any) => `${i.product?.name ?? `#${i.productId}`} x${i.quantity}`).join(" | ");
+                      rows.push([
+                        o.user?.name ?? "",
+                        o.user?.email ?? "",
+                        o.status,
+                        parseFloat(o.totalAmount).toFixed(2),
+                        items,
+                        o.trackingNumber ?? "",
+                        o.trackingCarrier ?? "",
+                        o.shippingName ?? "",
+                        o.shippingAddress1 ?? "",
+                        o.shippingAddress2 ?? "",
+                        o.shippingCity ?? "",
+                        o.shippingState ?? "",
+                        o.shippingZip ?? "",
+                        o.shippingCountry ?? "",
+                        new Date(o.createdAt).toLocaleDateString(),
+                      ]);
+                    });
+                    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `orders-buy-${buyId}-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <FileDown size={13} /> Export CSV
+                </Button>
+              </div>
+            )}
             {!orders || orders.length === 0 ? (
               <div className="glass-card p-8 text-center text-muted-foreground text-sm">No orders yet.</div>
             ) : (

@@ -22,6 +22,10 @@ import AdminBuyDetail from "./pages/admin/BuyDetail";
 import AdminMembers from "./pages/admin/Members";
 import AdminReporting from "./pages/admin/Reporting";
 import AdminSettings from "./pages/admin/Settings";
+import AdminInviteCodes from "./pages/admin/InviteCodes";
+
+// Gate
+import InviteGate from "./components/InviteGate";
 
 function Router() {
   return (
@@ -29,12 +33,12 @@ function Router() {
       {/* Public */}
       <Route path="/" component={Home} />
 
-      {/* Member */}
-      <Route path="/dashboard" component={MemberDashboard} />
-      <Route path="/buys" component={BrowseBuys} />
-      <Route path="/buys/:id" component={BuyDetail} />
-      <Route path="/my-orders" component={MyOrders} />
-      <Route path="/profile" component={Profile} />
+      {/* Member — gated behind invite code */}
+      <Route path="/dashboard">{() => <InviteGate><MemberDashboard /></InviteGate>}</Route>
+      <Route path="/buys">{() => <InviteGate><BrowseBuys /></InviteGate>}</Route>
+      <Route path="/buys/:id">{() => <InviteGate><BuyDetail /></InviteGate>}</Route>
+      <Route path="/my-orders">{() => <InviteGate><MyOrders /></InviteGate>}</Route>
+      <Route path="/profile">{() => <InviteGate><Profile /></InviteGate>}</Route>
 
       {/* Admin */}
       <Route path="/admin" component={AdminDashboard} />
@@ -43,6 +47,7 @@ function Router() {
       <Route path="/admin/members" component={AdminMembers} />
       <Route path="/admin/reporting" component={AdminReporting} />
       <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/invite-codes" component={AdminInviteCodes} />
 
       {/* Fallback */}
       <Route path="/404" component={NotFound} />

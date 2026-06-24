@@ -6,6 +6,7 @@ import {
   BarChart3,
   ChevronDown,
   FlaskConical,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Package,
@@ -44,6 +45,7 @@ const adminNav: NavItem[] = [
   { label: "Members", href: "/admin/members", icon: <Users size={16} />, adminOnly: true },
   { label: "Reporting", href: "/admin/reporting", icon: <BarChart3 size={16} />, adminOnly: true },
   { label: "Settings", href: "/admin/settings", icon: <Settings size={16} />, adminOnly: true },
+  { label: "Invite Codes", href: "/admin/invite-codes", icon: <KeyRound size={16} />, adminOnly: true },
 ];
 
 interface Props {

@@ -15,6 +15,13 @@
       "when": 1782266608189,
       "tag": "0001_quiet_havok",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1782337848008,
+      "tag": "0002_mysterious_runaways",
+      "breakpoints": true
     }
   ]
 }

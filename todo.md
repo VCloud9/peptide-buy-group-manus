@@ -80,3 +80,9 @@
 - [x] Add ImportProductsDialog component with file upload, column preview, and confirm
 - [x] Wire import button into Admin Buy Detail Products tab
 - [x] Add downloadable template CSV
+
+## Round 2 Features
+- [ ] Add hero logo lockup to landing page (larger centered logo above headline)
+- [ ] Build member invite/access-code gate — DB table, server procedures, UI at registration
+- [ ] Admin: manage invite codes (create, revoke, view usage)
+- [ ] Add CSV export button to admin Buy Detail Orders tab

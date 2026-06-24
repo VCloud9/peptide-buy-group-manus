@@ -11,6 +11,8 @@ import {
   InsertUser,
   Order,
   groupBuys,
+  inviteCodeUses,
+  inviteCodes,
   orderItems,
   orders,
   participationTiers,
@@ -387,6 +389,79 @@ export async function getSkoolWebhookLogs(limit = 50) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(skoolWebhookLog).orderBy(desc(skoolWebhookLog.sentAt)).limit(limit);
+}
+
+// ─── Invite Codes ────────────────────────────────────────────────────────────
+
+export async function createInviteCode(data: {
+  code: string;
+  label?: string;
+  maxUses?: number;
+  expiresAt?: Date;
+  createdBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(inviteCodes).values(data);
+  return data.code;
+}
+
+export async function getAllInviteCodes() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(inviteCodes).orderBy(desc(inviteCodes.createdAt));
+}
+
+export async function getInviteCodeByCode(code: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code.toUpperCase())).limit(1);
+  return rows[0];
+}
+
+export async function revokeInviteCode(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(inviteCodes).set({ isActive: false }).where(eq(inviteCodes.id, id));
+}
+
+export async function redeemInviteCode(code: string, userId: number): Promise<{ success: boolean; error?: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, error: "DB unavailable" };
+
+  const invite = await getInviteCodeByCode(code);
+  if (!invite) return { success: false, error: "Invalid invite code" };
+  if (!invite.isActive) return { success: false, error: "This invite code has been revoked" };
+  if (invite.expiresAt && new Date() > invite.expiresAt) return { success: false, error: "This invite code has expired" };
+  if (invite.maxUses !== null && invite.usedCount >= (invite.maxUses ?? Infinity)) {
+    return { success: false, error: "This invite code has reached its maximum uses" };
+  }
+
+  // Check if user already used any invite code
+  const existing = await db.select().from(inviteCodeUses).where(eq(inviteCodeUses.userId, userId)).limit(1);
+  if (existing.length > 0) return { success: true }; // already onboarded
+
+  await db.insert(inviteCodeUses).values({ inviteCodeId: invite.id, userId });
+  await db.update(inviteCodes).set({ usedCount: invite.usedCount + 1 }).where(eq(inviteCodes.id, invite.id));
+  return { success: true };
+}
+
+export async function getUserInviteStatus(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select().from(inviteCodeUses).where(eq(inviteCodeUses.userId, userId)).limit(1);
+  return rows.length > 0;
+}
+
+export async function getInviteCodeUses(inviteCodeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ use: inviteCodeUses, user: users })
+    .from(inviteCodeUses)
+    .where(eq(inviteCodeUses.inviteCodeId, inviteCodeId))
+    .leftJoin(users, eq(inviteCodeUses.userId, users.id))
+    .orderBy(desc(inviteCodeUses.usedAt));
 }
 
 // ─── Reporting ────────────────────────────────────────────────────────────────

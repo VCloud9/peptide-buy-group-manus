@@ -43,6 +43,12 @@ import {
   updateUserRole,
   upsertSkoolWebhookConfig,
   upsertUser,
+  createInviteCode,
+  getAllInviteCodes,
+  revokeInviteCode,
+  redeemInviteCode,
+  getUserInviteStatus,
+  getInviteCodeUses,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -683,7 +689,62 @@ export const appRouter = router({
       }),
   }),
 
-  // ─── Reporting ────────────────────────────────────────────────────────────
+  // ─── Invite Codes ────────────────────────────────────────────────────────────────
+
+  inviteCodes: router({
+    list: adminProcedure.query(async () => {
+      return getAllInviteCodes();
+    }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          label: z.string().optional(),
+          maxUses: z.number().int().positive().optional(),
+          expiresAt: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const code = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+        await createInviteCode({
+          code,
+          label: input.label,
+          maxUses: input.maxUses,
+          expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+          createdBy: ctx.user.id,
+        });
+        return { success: true, code };
+      }),
+
+    revoke: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await revokeInviteCode(input.id);
+        return { success: true };
+      }),
+
+    getUses: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getInviteCodeUses(input.id);
+      }),
+
+    myStatus: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin" || ctx.user.role === "owner") return { onboarded: true };
+      return { onboarded: await getUserInviteStatus(ctx.user.id) };
+    }),
+
+    redeem: protectedProcedure
+      .input(z.object({ code: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await redeemInviteCode(input.code.trim().toUpperCase(), ctx.user.id);
+        if (!result.success) throw new TRPCError({ code: "BAD_REQUEST", message: result.error });
+        return { success: true };
+      }),
+  }),
+
+  // ─── Reporting ────────────────────────────────────────────────────────────────
 
   reporting: router({
     buyReport: adminProcedure

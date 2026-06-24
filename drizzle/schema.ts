@@ -213,3 +213,31 @@ export const skoolWebhookLog = mysqlTable("skool_webhook_log", {
 });
 
 export type SkoolWebhookLog = typeof skoolWebhookLog.$inferSelect;
+
+// ─── Invite Codes ─────────────────────────────────────────────────────────────
+
+export const inviteCodes = mysqlTable("invite_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  label: varchar("label", { length: 128 }),          // e.g. "Skool batch Jan 2026"
+  maxUses: int("maxUses"),                            // null = unlimited
+  usedCount: int("usedCount").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+});
+
+export type InviteCode = typeof inviteCodes.$inferSelect;
+export type InsertInviteCode = typeof inviteCodes.$inferInsert;
+
+// ─── Invite Code Uses ─────────────────────────────────────────────────────────
+
+export const inviteCodeUses = mysqlTable("invite_code_uses", {
+  id: int("id").autoincrement().primaryKey(),
+  inviteCodeId: int("inviteCodeId").notNull(),
+  userId: int("userId").notNull(),
+  usedAt: timestamp("usedAt").defaultNow().notNull(),
+});
+
+export type InviteCodeUse = typeof inviteCodeUses.$inferSelect;
