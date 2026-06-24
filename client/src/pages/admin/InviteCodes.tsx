@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy, KeyRound, Plus, ShieldOff, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, KeyRound, Plus, ShieldOff, Users } from "lucide-react";
 import { format } from "date-fns";
 
 export default function InviteCodesPage() {
@@ -25,6 +25,7 @@ export default function InviteCodesPage() {
   const [label, setLabel] = useState("");
   const [maxUses, setMaxUses] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const createMutation = trpc.inviteCodes.create.useMutation({
     onSuccess: (data) => {
@@ -53,6 +54,24 @@ export default function InviteCodesPage() {
 
   const activeCodes = codes.filter((c) => c.isActive);
   const revokedCodes = codes.filter((c) => !c.isActive);
+
+  // Usage details sub-component
+  function UsageDetails({ id }: { id: number }) {
+    const { data: uses = [], isLoading } = trpc.inviteCodes.getUses.useQuery({ id });
+    if (isLoading) return <div className="text-xs text-muted-foreground py-2 pl-4">Loading usage…</div>;
+    if (uses.length === 0) return <div className="text-xs text-muted-foreground py-2 pl-4">No redemptions yet.</div>;
+    return (
+      <div className="pl-4 pb-2 space-y-1">
+        {uses.map((u: any, i: number) => (
+          <div key={i} className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{u.user?.name ?? u.user?.email ?? `User #${u.use.userId}`}</span>
+            <span>{u.user?.email && u.user?.name ? u.user.email : ""}</span>
+            <span className="ml-auto">{format(new Date(u.use.usedAt), "MMM d, yyyy h:mm a")}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <AppLayout>
@@ -164,53 +183,59 @@ export default function InviteCodesPage() {
             ) : (
               <div className="divide-y divide-border">
                 {activeCodes.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between py-3 gap-4"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <code className="font-mono text-sm font-semibold tracking-widest text-foreground bg-muted px-2 py-1 rounded">
-                        {c.code}
-                      </code>
-                      <div className="min-w-0">
-                        {c.label && (
-                          <div className="text-sm font-medium truncate">{c.label}</div>
-                        )}
-                        <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
-                          <Users size={11} />
-                          {c.usedCount}
-                          {c.maxUses !== null ? ` / ${c.maxUses}` : " uses"}
-                          {c.expiresAt && (
-                            <span>· Expires {format(new Date(c.expiresAt), "MMM d, yyyy")}</span>
+                  <div key={c.id} className="py-1">
+                    <div className="flex items-center justify-between py-2 gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                        >
+                          {expandedId === c.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </button>
+                        <code className="font-mono text-sm font-semibold tracking-widest text-foreground bg-muted px-2 py-1 rounded">
+                          {c.code}
+                        </code>
+                        <div className="min-w-0">
+                          {c.label && (
+                            <div className="text-sm font-medium truncate">{c.label}</div>
                           )}
-                          <span>· Created {format(new Date(c.createdAt), "MMM d, yyyy")}</span>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                            <Users size={11} />
+                            {c.usedCount}
+                            {c.maxUses !== null ? ` / ${c.maxUses}` : " uses"}
+                            {c.expiresAt && (
+                              <span>· Expires {format(new Date(c.expiresAt), "MMM d, yyyy")}</span>
+                            )}
+                            <span>· Created {format(new Date(c.createdAt), "MMM d, yyyy")}</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs gap-1"
+                          onClick={() => copyCode(c.code)}
+                        >
+                          <Copy size={12} />
+                          Copy
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm(`Revoke code ${c.code}? This cannot be undone.`)) {
+                              revokeMutation.mutate({ id: c.id });
+                            }
+                          }}
+                        >
+                          <ShieldOff size={12} />
+                          Revoke
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs gap-1"
-                        onClick={() => copyCode(c.code)}
-                      >
-                        <Copy size={12} />
-                        Copy
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm(`Revoke code ${c.code}? This cannot be undone.`)) {
-                            revokeMutation.mutate({ id: c.id });
-                          }
-                        }}
-                      >
-                        <ShieldOff size={12} />
-                        Revoke
-                      </Button>
-                    </div>
+                    {expandedId === c.id && <UsageDetails id={c.id} />}
                   </div>
                 ))}
               </div>

@@ -82,7 +82,7 @@
 - [x] Add downloadable template CSV
 
 ## Round 2 Features
-- [ ] Add hero logo lockup to landing page (larger centered logo above headline)
-- [ ] Build member invite/access-code gate — DB table, server procedures, UI at registration
-- [ ] Admin: manage invite codes (create, revoke, view usage)
-- [ ] Add CSV export button to admin Buy Detail Orders tab
+- [x] Add hero logo lockup to landing page (larger centered logo above headline)
+- [x] Build member invite/access-code gate — DB table, server procedures, UI at registration
+- [x] Admin: manage invite codes (create, revoke, view usage)
+- [x] Add CSV export button to admin Buy Detail Orders tab
