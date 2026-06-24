@@ -73,3 +73,10 @@
 - [x] Skool webhook event tests
 - [x] MOQ progress calculation tests
 - [x] Role-based access control tests
+
+## Product Import
+- [x] Install xlsx/papaparse for CSV and XLSX parsing
+- [x] Add bulkCreateProducts server procedure
+- [x] Add ImportProductsDialog component with file upload, column preview, and confirm
+- [x] Wire import button into Admin Buy Detail Products tab
+- [x] Add downloadable template CSV

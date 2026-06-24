@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { ImportProductsDialog } from "@/components/ImportProductsDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MoqProgress } from "@/components/MoqProgress";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export default function AdminBuyDetail() {
   // Product dialog
   const EMPTY_PRODUCT = { name: "", description: "", pricePerUnit: "", unit: "vial", minQuantity: "1", maxQuantity: "" };
   const [productDialog, setProductDialog] = useState(false);
+  const [importDialog, setImportDialog] = useState(false);
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
   const setP = (f: keyof typeof EMPTY_PRODUCT) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProductForm((prev) => ({ ...prev, [f]: e.target.value }));
@@ -184,7 +186,10 @@ export default function AdminBuyDetail() {
 
           {/* ── Products Tab ─────────────────────────────────────────────── */}
           <TabsContent value="products" className="space-y-3 mt-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setImportDialog(true)}>
+                <Upload size={13} /> Import CSV / XLSX
+              </Button>
               <Button size="sm" className="gap-1.5" onClick={() => setProductDialog(true)}>
                 <Plus size={13} /> Add Product
               </Button>
@@ -446,6 +451,14 @@ export default function AdminBuyDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Products Dialog */}
+      <ImportProductsDialog
+        open={importDialog}
+        onOpenChange={setImportDialog}
+        groupBuyId={buyId}
+        onImported={() => refetch()}
+      />
 
       {/* Tier Dialog */}
       <Dialog open={tierDialog} onOpenChange={setTierDialog}>

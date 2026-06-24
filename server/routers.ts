@@ -6,6 +6,7 @@ import {
   createOrder,
   createOrderItem,
   createProduct,
+  bulkCreateProducts,
   createTestResult,
   createTier,
   deleteGroupBuy,
@@ -295,14 +296,43 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    delete: adminProcedure
+        delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteProduct(input.id);
         return { success: true };
       }),
+    bulkCreate: adminProcedure
+      .input(
+        z.object({
+          groupBuyId: z.number(),
+          products: z.array(
+            z.object({
+              name: z.string().min(1),
+              description: z.string().optional(),
+              pricePerUnit: z.string(),
+              unit: z.string().default("vial"),
+              minQuantity: z.number().default(1),
+              maxQuantity: z.number().optional(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const rows = input.products.map((p) => ({
+          groupBuyId: input.groupBuyId,
+          name: p.name,
+          description: p.description ?? null,
+          pricePerUnit: p.pricePerUnit,
+          unit: p.unit ?? "vial",
+          minQuantity: p.minQuantity ?? 1,
+          maxQuantity: p.maxQuantity ?? null,
+          inStock: true as const,
+        }));
+        await bulkCreateProducts(rows);
+        return { success: true, count: rows.length };
+      }),
   }),
-
   // ─── Tiers ────────────────────────────────────────────────────────────────
 
   tiers: router({

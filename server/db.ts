@@ -170,6 +170,16 @@ export async function createProduct(data: InsertProduct) {
   await db.insert(products).values(data);
 }
 
+export async function bulkCreateProducts(rows: InsertProduct[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (rows.length === 0) return;
+  // Insert in batches of 50 to avoid oversized queries
+  const BATCH = 50;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    await db.insert(products).values(rows.slice(i, i + BATCH));
+  }
+}
 export async function updateProduct(id: number, data: Partial<InsertProduct>) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
