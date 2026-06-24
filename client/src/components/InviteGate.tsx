@@ -45,7 +45,7 @@ export default function InviteGate({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <div className="flex justify-center">
           <img
-            src="/manus-storage/pbg-logo_eb506b81.png"
+            src="/manus-storage/pbg-logo-v2_631d4d9d.png"
             alt="Peptide Buy Group"
             className="h-12 w-auto"
           />

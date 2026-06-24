@@ -95,7 +95,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
         <div className="container h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href={isAdmin && showAdmin ? "/admin" : "/dashboard"}>
-            <img src="/manus-storage/pbg-logo_eb506b81.png" alt="Peptide Buy Group" className="h-8 w-auto" />
+            <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
           </Link>
 
           {/* Desktop nav */}

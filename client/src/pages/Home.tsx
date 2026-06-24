@@ -58,7 +58,7 @@ export default function Home() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
         <div className="container h-14 flex items-center justify-between">
           <span className="flex items-center">
-            <img src="/manus-storage/pbg-logo_eb506b81.png" alt="Peptide Buy Group" className="h-8 w-auto" />
+            <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
           </span>
           <div className="flex items-center gap-3">
             {!loading && (
@@ -83,7 +83,7 @@ export default function Home() {
           {/* Hero logo lockup */}
           <div className="flex justify-center mb-4">
             <img
-              src="/manus-storage/pbg-logo_eb506b81.png"
+              src="/manus-storage/pbg-logo-v2_631d4d9d.png"
               alt="Peptide Buy Group"
               className="h-16 md:h-20 w-auto"
             />
