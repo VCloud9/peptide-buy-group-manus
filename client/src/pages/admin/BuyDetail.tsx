@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { ChevronLeft, Download, FileDown, FlaskConical, Package, Pencil, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
@@ -226,14 +228,38 @@ export default function AdminBuyDetail() {
                   {products.map((p) => (
                     <div key={p.id} className="flex items-center gap-4 px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{p.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{p.name}</p>
+                          {!p.inStock && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                              Out of Stock
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           ${parseFloat(p.pricePerUnit as string).toFixed(2)} / {p.unit}
                           {p.minQuantity > 1 && ` · Min: ${p.minQuantity}`}
                           {p.maxQuantity && ` · Max: ${p.maxQuantity}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-3 shrink-0">
+                        {/* Stock toggle */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5">
+                              <Switch
+                                checked={p.inStock}
+                                onCheckedChange={(checked) =>
+                                  updateProduct.mutate({ id: p.id, inStock: checked })
+                                }
+                                className="scale-75"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {p.inStock ? "In stock — click to mark out of stock" : "Out of stock — click to restore"}
+                          </TooltipContent>
+                        </Tooltip>
                         <Button
                           variant="ghost" size="sm"
                           className="text-muted-foreground hover:text-foreground"

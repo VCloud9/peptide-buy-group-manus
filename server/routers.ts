@@ -527,6 +527,7 @@ export const appRouter = router({
         for (const item of input.items) {
           const product = await getProductById(item.productId);
           if (!product) throw new TRPCError({ code: "NOT_FOUND", message: `Product ${item.productId} not found` });
+          if (!product.inStock) throw new TRPCError({ code: "BAD_REQUEST", message: `"${product.name}" is currently out of stock and cannot be ordered.` });
           const unitPrice = parseFloat(product.pricePerUnit as string);
           const lineTotal = unitPrice * item.quantity;
           totalAmount += lineTotal;

@@ -90,3 +90,6 @@
 ## Round 3 Features
 - [x] Bulk tracking number import: CSV upload (email → tracking number) in admin Orders tab
 - [x] Duplicate buy: clone an existing buy (products + tiers) as a new draft
+
+## Round 4 Features
+- [x] Product stock toggle: on/off switch per product to mark as out of stock (hides from member order form)

@@ -166,10 +166,18 @@ export default function BuyDetail() {
               <div className="space-y-3">
                 {products.map((product) => {
                   const qty = quantities[product.id] ?? 0;
+                  const outOfStock = !product.inStock;
                   return (
-                    <div key={product.id} className="glass-card p-4 flex items-center gap-4">
+                    <div key={product.id} className={`glass-card p-4 flex items-center gap-4 ${outOfStock ? "opacity-50" : ""}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{product.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{product.name}</p>
+                          {outOfStock && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
                         {product.description && (
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                             {product.description}
@@ -181,7 +189,7 @@ export default function BuyDetail() {
                           {product.maxQuantity && ` · Max: ${product.maxQuantity}`}
                         </p>
                       </div>
-                      {canOrder && (
+                      {canOrder && !outOfStock && (
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() =>
