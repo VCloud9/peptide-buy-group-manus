@@ -57,9 +57,8 @@ export default function Home() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
         <div className="container h-14 flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <FlaskConical size={18} className="text-primary" />
-            <span className="font-bold text-base text-foreground">PeptideBuy</span>
+          <span className="flex items-center">
+            <img src="/manus-storage/pbg-logo_eb506b81.png" alt="Peptide Buy Group" className="h-8 w-auto" />
           </span>
           <div className="flex items-center gap-3">
             {!loading && (
@@ -189,7 +188,7 @@ export default function Home() {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        <p>PeptideBuy &mdash; For Research Use Only &mdash; Not for Human Consumption</p>
+        <p>Peptide Buy Group &mdash; For Research Use Only &mdash; Not for Human Consumption</p>
         <p className="mt-1 opacity-60">All products are research-grade only. Participants are responsible for compliance with applicable laws.</p>
       </footer>
     </div>

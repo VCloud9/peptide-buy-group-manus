@@ -93,10 +93,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
         <div className="container h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href={isAdmin && showAdmin ? "/admin" : "/dashboard"}>
-            <span className="flex items-center gap-2 font-semibold text-sm tracking-tight">
-              <FlaskConical size={18} className="text-primary" />
-              <span className="font-bold text-base text-foreground">PeptideBuy</span>
-            </span>
+            <img src="/manus-storage/pbg-logo_eb506b81.png" alt="Peptide Buy Group" className="h-8 w-auto" />
           </Link>
 
           {/* Desktop nav */}
@@ -173,7 +170,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
 
       {/* Footer */}
       <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        PeptideBuy &mdash; Research Use Only &mdash; Not for Human Consumption
+        Peptide Buy Group &mdash; Research Use Only &mdash; Not for Human Consumption
       </footer>
     </div>
   );
