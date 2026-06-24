@@ -255,6 +255,54 @@ export const appRouter = router({
         await deleteGroupBuy(input.id);
         return { success: true };
       }),
+
+    // Clone an existing buy (products + tiers) as a new Draft
+    duplicate: adminProcedure
+      .input(z.object({ id: z.number(), newTitle: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const source = await getGroupBuyById(input.id);
+        if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Buy not found" });
+        const result = await createGroupBuy({
+          title: input.newTitle,
+          description: source.description ?? undefined,
+          vendorName: source.vendorName ?? undefined,
+          vendorCountry: source.vendorCountry ?? undefined,
+          moqTarget: source.moqTarget ?? undefined,
+          participantCap: source.participantCap ?? undefined,
+          endDate: undefined,
+          status: "Draft",
+          createdBy: source.createdBy,
+        });
+        const newId = (result as any).insertId as number;
+        // Copy products
+        const sourceProducts = await getProductsByGroupBuy(input.id);
+        await Promise.all(
+          sourceProducts.map((p) =>
+            createProduct({
+              groupBuyId: newId,
+              name: p.name,
+              description: p.description ?? undefined,
+              pricePerUnit: p.pricePerUnit,
+              unit: p.unit,
+              minQuantity: p.minQuantity,
+              maxQuantity: p.maxQuantity ?? undefined,
+            })
+          )
+        );
+        // Copy tiers
+        const sourceTiers = await getTiersByGroupBuy(input.id);
+        await Promise.all(
+          sourceTiers.map((t) =>
+            createTier({
+              groupBuyId: newId,
+              name: t.name,
+              minAmount: t.minAmount,
+              description: t.description ?? undefined,
+            })
+          )
+        );
+        return { success: true, newId };
+      }),
   }),
 
   // ─── Products ─────────────────────────────────────────────────────────────
@@ -556,6 +604,45 @@ export const appRouter = router({
         const toUpdate = orderList.filter((o) => o.status === input.fromStatus);
         await Promise.all(toUpdate.map((o) => updateOrder(o.id, { status: input.toStatus })));
         return { success: true, updated: toUpdate.length };
+      }),
+
+    // Bulk import tracking numbers from CSV rows [{email, trackingNumber, carrier?}]
+    bulkUpdateTracking: adminProcedure
+      .input(
+        z.object({
+          groupBuyId: z.number(),
+          rows: z.array(
+            z.object({
+              email: z.string(),
+              trackingNumber: z.string(),
+              carrier: z.string().optional(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const orderList = await getOrdersByGroupBuy(input.groupBuyId);
+        // Build email → order map
+        const emailMap = new Map<string, typeof orderList[0]>();
+        for (const o of orderList) {
+          if ((o as any).user?.email) emailMap.set((o as any).user.email.toLowerCase(), o);
+        }
+        let matched = 0;
+        let unmatched: string[] = [];
+        await Promise.all(
+          input.rows.map(async (row) => {
+            const order = emailMap.get(row.email.toLowerCase());
+            if (!order) { unmatched.push(row.email); return; }
+            await updateOrder(order.id, {
+              trackingNumber: row.trackingNumber,
+              trackingCarrier: row.carrier ?? null,
+              status: "Shipped",
+              shippedAt: new Date(),
+            });
+            matched++;
+          })
+        );
+        return { success: true, matched, unmatched };
       }),
   }),
 

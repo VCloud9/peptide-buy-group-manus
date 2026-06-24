@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { ImportProductsDialog } from "@/components/ImportProductsDialog";
+import BulkTrackingImportDialog from "@/components/BulkTrackingImportDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MoqProgress } from "@/components/MoqProgress";
 import { Button } from "@/components/ui/button";
@@ -294,9 +295,10 @@ export default function AdminBuyDetail() {
 
           {/* ── Orders Tab ────────────────────────────────────────────────── */}
           <TabsContent value="orders" className="space-y-3 mt-4">
-            {/* CSV Export */}
+            {/* Orders toolbar: Import Tracking + CSV Export */}
             {orders && orders.length > 0 && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <BulkTrackingImportDialog groupBuyId={buyId} onSuccess={refetchOrders} />
                 <Button
                   variant="outline"
                   size="sm"

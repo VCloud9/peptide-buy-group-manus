@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Settings2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Settings2, Copy } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -104,10 +104,24 @@ export default function AdminGroupBuys() {
     onError: (e) => toast.error(e.message),
   });
 
+  const duplicateBuy = trpc.groupBuys.duplicate.useMutation({
+    onSuccess: (data) => {
+      toast.success("Buy duplicated as a new Draft.");
+      utils.reporting.allBuysSummary.invalidate();
+      setDuplicateOpen(false);
+      setDuplicateId(null);
+      setDuplicateTitle("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateId, setDuplicateId] = useState<number | null>(null);
+  const [duplicateTitle, setDuplicateTitle] = useState("");
 
   const set = (f: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [f]: e.target.value }));
@@ -217,6 +231,17 @@ export default function AdminGroupBuys() {
                     </Button>
                     <Button
                       variant="ghost" size="sm"
+                      title="Duplicate buy"
+                      onClick={() => {
+                        setDuplicateId(buy.id);
+                        setDuplicateTitle(`${buy.title} (Copy)`);
+                        setDuplicateOpen(true);
+                      }}
+                    >
+                      <Copy size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost" size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => {
                         if (confirm(`Delete "${buy.title}"? This cannot be undone.`)) {
@@ -261,6 +286,39 @@ export default function AdminGroupBuys() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={updateBuy.isPending}>
               {updateBuy.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Duplicate Dialog */}
+      <Dialog open={duplicateOpen} onOpenChange={(v) => { setDuplicateOpen(v); if (!v) { setDuplicateId(null); setDuplicateTitle(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Duplicate Group Buy</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Creates a new <strong>Draft</strong> buy with the same products and participation tiers. Orders and test results are not copied.
+            </p>
+            <div className="space-y-1.5">
+              <Label>New Buy Title *</Label>
+              <Input
+                value={duplicateTitle}
+                onChange={(e) => setDuplicateTitle(e.target.value)}
+                placeholder="Q4 2025 Peptide Buy"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!duplicateId || !duplicateTitle.trim()) { toast.error("Title is required."); return; }
+                duplicateBuy.mutate({ id: duplicateId, newTitle: duplicateTitle.trim() });
+              }}
+              disabled={duplicateBuy.isPending}
+            >
+              {duplicateBuy.isPending ? "Duplicating…" : "Duplicate"}
             </Button>
           </DialogFooter>
         </DialogContent>

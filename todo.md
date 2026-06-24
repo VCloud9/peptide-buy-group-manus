@@ -86,3 +86,7 @@
 - [x] Build member invite/access-code gate — DB table, server procedures, UI at registration
 - [x] Admin: manage invite codes (create, revoke, view usage)
 - [x] Add CSV export button to admin Buy Detail Orders tab
+
+## Round 3 Features
+- [x] Bulk tracking number import: CSV upload (email → tracking number) in admin Orders tab
+- [x] Duplicate buy: clone an existing buy (products + tiers) as a new draft
