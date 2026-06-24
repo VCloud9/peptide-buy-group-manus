@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, Download, FlaskConical, Package, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { ChevronLeft, Download, FlaskConical, Package, Pencil, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -39,6 +39,10 @@ export default function AdminBuyDetail() {
   });
   const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => { toast.success("Product removed."); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateProduct = trpc.products.update.useMutation({
+    onSuccess: () => { toast.success("Product updated."); refetch(); setEditProductDialog(false); setEditProductId(null); },
     onError: (e) => toast.error(e.message),
   });
   const createTier = trpc.tiers.create.useMutation({
@@ -77,6 +81,25 @@ export default function AdminBuyDetail() {
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
   const setP = (f: keyof typeof EMPTY_PRODUCT) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProductForm((prev) => ({ ...prev, [f]: e.target.value }));
+
+  // Edit product dialog
+  const [editProductDialog, setEditProductDialog] = useState(false);
+  const [editProductId, setEditProductId] = useState<number | null>(null);
+  const [editProductForm, setEditProductForm] = useState(EMPTY_PRODUCT);
+  const setEP = (f: keyof typeof EMPTY_PRODUCT) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setEditProductForm((prev) => ({ ...prev, [f]: e.target.value }));
+  const openEditProduct = (p: typeof products[number]) => {
+    setEditProductId(p.id);
+    setEditProductForm({
+      name: p.name,
+      description: p.description ?? "",
+      pricePerUnit: parseFloat(p.pricePerUnit as string).toFixed(2),
+      unit: p.unit,
+      minQuantity: String(p.minQuantity),
+      maxQuantity: p.maxQuantity ? String(p.maxQuantity) : "",
+    });
+    setEditProductDialog(true);
+  };
 
   // Tier dialog
   const EMPTY_TIER = { name: "", minAmount: "", description: "", sortOrder: "0" };
@@ -209,13 +232,22 @@ export default function AdminBuyDetail() {
                           {p.maxQuantity && ` · Max: ${p.maxQuantity}`}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => confirm(`Remove "${p.name}"?`) && deleteProduct.mutate({ id: p.id })}
-                      >
-                        <Trash2 size={13} />
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => openEditProduct(p)}
+                        >
+                          <Pencil size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => confirm(`Remove "${p.name}"?`) && deleteProduct.mutate({ id: p.id })}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -447,6 +479,63 @@ export default function AdminBuyDetail() {
             <Button variant="outline" onClick={() => setProductDialog(false)}>Cancel</Button>
             <Button onClick={() => createProduct.mutate({ groupBuyId: buyId, name: productForm.name, description: productForm.description || undefined, pricePerUnit: productForm.pricePerUnit, unit: productForm.unit, minQuantity: parseInt(productForm.minQuantity) || 1, maxQuantity: productForm.maxQuantity ? parseInt(productForm.maxQuantity) : undefined })} disabled={createProduct.isPending}>
               Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={editProductDialog} onOpenChange={(v) => { setEditProductDialog(v); if (!v) setEditProductId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Product</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Name *</Label>
+              <Input value={editProductForm.name} onChange={setEP("name")} placeholder="BPC-157 5mg" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea value={editProductForm.description} onChange={setEP("description")} rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Price per Unit ($) *</Label>
+                <Input type="number" step="0.01" value={editProductForm.pricePerUnit} onChange={setEP("pricePerUnit")} placeholder="12.50" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Unit</Label>
+                <Input value={editProductForm.unit} onChange={setEP("unit")} placeholder="vial" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Min Qty</Label>
+                <Input type="number" value={editProductForm.minQuantity} onChange={setEP("minQuantity")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Max Qty</Label>
+                <Input type="number" value={editProductForm.maxQuantity} onChange={setEP("maxQuantity")} placeholder="None" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProductDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!editProductId) return;
+                updateProduct.mutate({
+                  id: editProductId,
+                  name: editProductForm.name,
+                  description: editProductForm.description || undefined,
+                  pricePerUnit: editProductForm.pricePerUnit,
+                  unit: editProductForm.unit,
+                  minQuantity: parseInt(editProductForm.minQuantity) || 1,
+                  maxQuantity: editProductForm.maxQuantity ? parseInt(editProductForm.maxQuantity) : null,
+                });
+              }}
+              disabled={updateProduct.isPending || !editProductForm.name || !editProductForm.pricePerUnit}
+            >
+              {updateProduct.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
