@@ -34,9 +34,9 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Total Buys", value: totalBuys, icon: <FlaskConical size={16} className="text-primary" /> },
-            { label: "Active Buys", value: activeBuys, icon: <FlaskConical size={16} className="text-blue-400" /> },
-            { label: "Members", value: totalMembers, icon: <Users size={16} className="text-violet-400" /> },
-            { label: "Total Committed", value: `$${totalCommitted.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: <BarChart3 size={16} className="text-emerald-400" /> },
+            { label: "Active Buys", value: activeBuys, icon: <FlaskConical size={16} className="text-primary" /> },
+            { label: "Members", value: totalMembers, icon: <Users size={16} className="text-accent" /> },
+            { label: "Total Committed", value: `$${totalCommitted.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: <BarChart3 size={16} className="text-accent" /> },
           ].map((stat) => (
             <div key={stat.label} className="glass-card p-5 space-y-2">
               <div className="flex items-center justify-between">

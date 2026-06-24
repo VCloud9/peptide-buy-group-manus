@@ -309,7 +309,7 @@ export default function BuyDetail() {
                 </div>
 
                 {!meProfile?.shippingAddress1 && (
-                  <p className="text-xs text-amber-400 bg-amber-950/40 border border-amber-800/40 rounded-md p-2">
+                  <p className="text-xs text-accent bg-accent/10 border border-accent/30 rounded-md p-2">
                     No shipping address on file.{" "}
                     <Link href="/profile" className="underline">Add one in your profile</Link>.
                   </p>

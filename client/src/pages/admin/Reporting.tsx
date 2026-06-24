@@ -80,7 +80,7 @@ export default function AdminReporting() {
                       <td className="px-4 py-3 text-right tabular-nums font-medium">
                         ${stats.totalCommitted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-emerald-400">
+                      <td className="px-4 py-3 text-right tabular-nums text-accent">
                         ${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{stats.participantCount}</td>
@@ -135,11 +135,11 @@ export default function AdminReporting() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Paid</p>
-                    <p className="font-bold tabular-nums text-emerald-400">${report.stats.totalPaid.toFixed(0)}</p>
+                    <p className="font-bold tabular-nums text-accent">${report.stats.totalPaid.toFixed(0)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Outstanding</p>
-                    <p className="font-bold tabular-nums text-amber-400">
+                    <p className="font-bold tabular-nums text-muted-foreground">
                       ${(report.stats.totalCommitted - report.stats.totalPaid).toFixed(0)}
                     </p>
                   </div>

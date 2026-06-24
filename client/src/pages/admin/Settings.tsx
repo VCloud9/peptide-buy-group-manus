@@ -130,7 +130,7 @@ export default function AdminSettings() {
               {logs.map((log) => (
                 <div key={log.id} className="flex items-center gap-3 px-4 py-2.5">
                   {log.success ? (
-                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    <CheckCircle2 size={14} className="text-accent shrink-0" />
                   ) : (
                     <XCircle size={14} className="text-destructive shrink-0" />
                   )}

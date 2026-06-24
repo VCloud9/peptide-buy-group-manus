@@ -259,7 +259,7 @@ export function ImportProductsDialog({ open, onOpenChange, groupBuyId, onImporte
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm text-muted-foreground">File: <span className="text-foreground font-medium">{fileName}</span></span>
               <Badge variant="secondary" className="gap-1">
-                <CheckCircle2 size={11} className="text-emerald-400" />
+                <CheckCircle2 size={11} className="text-accent" />
                 {validRows.length} valid
               </Badge>
               {errorRows.length > 0 && (
@@ -304,7 +304,7 @@ export function ImportProductsDialog({ open, onOpenChange, groupBuyId, onImporte
                             <AlertCircle size={11} /> {row._error}
                           </span>
                         ) : (
-                          <span className="text-emerald-400 text-xs flex items-center gap-1">
+                          <span className="text-accent text-xs flex items-center gap-1">
                             <CheckCircle2 size={11} /> OK
                           </span>
                         )}

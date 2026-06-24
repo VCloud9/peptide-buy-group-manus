@@ -3,36 +3,65 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Brand colors (hex reference)
+   Primary:  #326698  → oklch(0.498 0.098 249.6)  — steel blue
+   Accent:   #F6AD55  → oklch(0.801 0.134 68.8)   — warm amber/gold
+   Neutral:  #656565  → oklch(0.507 0.000 263.3)  — mid-grey
+   ─────────────────────────────────────────────── */
+
 @theme inline {
-  --color-background: oklch(0.08 0.01 240);
-  --color-foreground: oklch(0.95 0.005 240);
-  --color-card: oklch(0.11 0.012 240);
-  --color-card-foreground: oklch(0.95 0.005 240);
-  --color-popover: oklch(0.11 0.012 240);
-  --color-popover-foreground: oklch(0.95 0.005 240);
-  --color-primary: oklch(0.72 0.18 165);
-  --color-primary-foreground: oklch(0.08 0.01 240);
-  --color-secondary: oklch(0.16 0.015 240);
-  --color-secondary-foreground: oklch(0.85 0.01 240);
-  --color-muted: oklch(0.14 0.012 240);
-  --color-muted-foreground: oklch(0.55 0.01 240);
-  --color-accent: oklch(0.18 0.02 240);
-  --color-accent-foreground: oklch(0.90 0.01 240);
-  --color-destructive: oklch(0.60 0.20 25);
+  /* ── Backgrounds ─────────────────────────────────────────────── */
+  /* Deep navy-blue background derived from the primary hue */
+  --color-background:         oklch(0.13 0.025 249.6);
+  --color-foreground:         oklch(0.95 0.005 249.6);
+
+  /* Cards sit one step lighter than the background */
+  --color-card:               oklch(0.17 0.028 249.6);
+  --color-card-foreground:    oklch(0.95 0.005 249.6);
+
+  --color-popover:            oklch(0.17 0.028 249.6);
+  --color-popover-foreground: oklch(0.95 0.005 249.6);
+
+  /* ── Primary — #326698 steel blue ───────────────────────────── */
+  --color-primary:            oklch(0.498 0.098 249.6);
+  --color-primary-foreground: oklch(0.97 0.005 249.6);
+
+  /* ── Secondary — slightly lighter blue-grey surface ─────────── */
+  --color-secondary:          oklch(0.22 0.030 249.6);
+  --color-secondary-foreground: oklch(0.88 0.008 249.6);
+
+  /* ── Muted ───────────────────────────────────────────────────── */
+  --color-muted:              oklch(0.19 0.022 249.6);
+  --color-muted-foreground:   oklch(0.507 0.000 263.3);   /* neutral grey */
+
+  /* ── Accent — #F6AD55 warm amber/gold ───────────────────────── */
+  --color-accent:             oklch(0.801 0.134 68.8);
+  --color-accent-foreground:  oklch(0.13 0.025 249.6);    /* dark bg for contrast */
+
+  /* ── Destructive ─────────────────────────────────────────────── */
+  --color-destructive:        oklch(0.60 0.20 25);
   --color-destructive-foreground: oklch(0.98 0 0);
-  --color-border: oklch(0.20 0.015 240);
-  --color-input: oklch(0.16 0.012 240);
-  --color-ring: oklch(0.72 0.18 165);
-  --color-chart-1: oklch(0.72 0.18 165);
-  --color-chart-2: oklch(0.65 0.15 200);
-  --color-chart-3: oklch(0.60 0.18 280);
-  --color-chart-4: oklch(0.70 0.15 60);
-  --color-chart-5: oklch(0.65 0.18 340);
+
+  /* ── Borders / inputs / ring ─────────────────────────────────── */
+  --color-border:             oklch(0.25 0.030 249.6);
+  --color-input:              oklch(0.20 0.025 249.6);
+  --color-ring:               oklch(0.498 0.098 249.6);
+
+  /* ── Charts ──────────────────────────────────────────────────── */
+  --color-chart-1:            oklch(0.498 0.098 249.6);   /* primary blue */
+  --color-chart-2:            oklch(0.801 0.134 68.8);    /* accent amber */
+  --color-chart-3:            oklch(0.507 0.000 263.3);   /* neutral grey */
+  --color-chart-4:            oklch(0.62 0.12 200);       /* teal */
+  --color-chart-5:            oklch(0.65 0.15 300);       /* violet */
+
+  /* ── Radii ───────────────────────────────────────────────────── */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius: 0.5rem;
+
+  /* ── Typography ──────────────────────────────────────────────── */
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
@@ -61,40 +90,43 @@
 }
 
 /* ── Status badge colors ───────────────────────────────────────────────────── */
-.status-draft       { @apply bg-zinc-800 text-zinc-400 border border-zinc-700; }
-.status-gathering   { @apply bg-blue-950 text-blue-300 border border-blue-800; }
-.status-funded      { @apply bg-emerald-950 text-emerald-300 border border-emerald-800; }
-.status-ordered     { @apply bg-violet-950 text-violet-300 border border-violet-800; }
-.status-testing     { @apply bg-amber-950 text-amber-300 border border-amber-800; }
-.status-distributing { @apply bg-cyan-950 text-cyan-300 border border-cyan-800; }
-.status-complete    { @apply bg-green-950 text-green-300 border border-green-800; }
+.status-draft        { background: oklch(0.20 0.025 249.6); color: oklch(0.65 0.020 249.6); border: 1px solid oklch(0.28 0.030 249.6); }
+.status-gathering    { background: oklch(0.19 0.040 249.6); color: oklch(0.70 0.080 249.6); border: 1px solid oklch(0.30 0.060 249.6); }
+.status-funded       { background: oklch(0.18 0.060 145);   color: oklch(0.72 0.14 145);    border: 1px solid oklch(0.28 0.080 145); }
+.status-ordered      { background: oklch(0.20 0.050 280);   color: oklch(0.72 0.12 280);    border: 1px solid oklch(0.30 0.070 280); }
+.status-testing      { background: oklch(0.20 0.060 68.8);  color: oklch(0.801 0.134 68.8); border: 1px solid oklch(0.35 0.090 68.8); }
+.status-distributing { background: oklch(0.19 0.040 200);   color: oklch(0.70 0.10 200);    border: 1px solid oklch(0.30 0.060 200); }
+.status-complete     { background: oklch(0.18 0.060 145);   color: oklch(0.75 0.16 145);    border: 1px solid oklch(0.30 0.090 145); }
 
 /* ── Payment status badge colors ───────────────────────────────────────────── */
-.pay-committed      { @apply bg-zinc-800 text-zinc-300 border border-zinc-700; }
-.pay-pending        { @apply bg-amber-950 text-amber-300 border border-amber-800; }
-.pay-paid           { @apply bg-emerald-950 text-emerald-300 border border-emerald-800; }
-.pay-shipped        { @apply bg-cyan-950 text-cyan-300 border border-cyan-800; }
+.pay-committed { background: oklch(0.20 0.025 249.6); color: oklch(0.65 0.020 249.6); border: 1px solid oklch(0.28 0.030 249.6); }
+.pay-pending   { background: oklch(0.20 0.060 68.8);  color: oklch(0.801 0.134 68.8); border: 1px solid oklch(0.35 0.090 68.8); }
+.pay-paid      { background: oklch(0.18 0.060 145);   color: oklch(0.72 0.14 145);    border: 1px solid oklch(0.28 0.080 145); }
+.pay-shipped   { background: oklch(0.19 0.040 200);   color: oklch(0.70 0.10 200);    border: 1px solid oklch(0.30 0.060 200); }
 
 /* ── Glass card ────────────────────────────────────────────────────────────── */
 .glass-card {
   @apply bg-card/80 backdrop-blur-sm border border-border rounded-xl;
 }
 
-/* ── Gradient text ─────────────────────────────────────────────────────────── */
+/* ── Gradient text — primary blue → accent amber ───────────────────────────── */
 .gradient-text {
-  @apply bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent;
+  background: linear-gradient(135deg, oklch(0.498 0.098 249.6), oklch(0.801 0.134 68.8));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* ── Subtle grid background ────────────────────────────────────────────────── */
 .grid-bg {
   background-image:
-    linear-gradient(oklch(0.20 0.015 240 / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.20 0.015 240 / 0.4) 1px, transparent 1px);
+    linear-gradient(oklch(0.25 0.030 249.6 / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.25 0.030 249.6 / 0.35) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: oklch(0.10 0.01 240); }
-::-webkit-scrollbar-thumb { background: oklch(0.25 0.015 240); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.35 0.015 240); }
+::-webkit-scrollbar-track { background: oklch(0.13 0.025 249.6); }
+::-webkit-scrollbar-thumb { background: oklch(0.28 0.035 249.6); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.498 0.098 249.6); }
