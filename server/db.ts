@@ -1,11 +1,28 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  GroupBuy,
+  InsertGroupBuy,
+  InsertOrder,
+  InsertOrderItem,
+  InsertParticipationTier,
+  InsertProduct,
+  InsertTestResult,
+  InsertUser,
+  Order,
+  groupBuys,
+  orderItems,
+  orders,
+  participationTiers,
+  products,
+  skoolWebhookConfig,
+  skoolWebhookLog,
+  testResults,
+  users,
+} from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -18,75 +35,370 @@ export async function getDb() {
   return _db;
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
+  if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
+  if (!db) return;
+
+  const values: InsertUser = { openId: user.openId };
+  const updateSet: Record<string, unknown> = {};
+
+  const textFields = ["name", "email", "loginMethod"] as const;
+  for (const field of textFields) {
+    const value = user[field];
+    if (value !== undefined) {
+      values[field] = value ?? null;
+      updateSet[field] = value ?? null;
+    }
   }
 
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
+  if (user.lastSignedIn !== undefined) {
+    values.lastSignedIn = user.lastSignedIn;
+    updateSet.lastSignedIn = user.lastSignedIn;
   }
+  if (user.role !== undefined) {
+    values.role = user.role;
+    updateSet.role = user.role;
+  }
+  if (!values.lastSignedIn) values.lastSignedIn = new Date();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
+
+  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateUserProfile(
+  id: number,
+  data: Partial<Pick<InsertUser, "name" | "skoolUsername" | "shippingName" | "shippingAddress1" | "shippingAddress2" | "shippingCity" | "shippingState" | "shippingZip" | "shippingCountry">>
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set(data).where(eq(users.id, id));
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function updateUserRole(id: number, role: "user" | "admin" | "owner") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ role }).where(eq(users.id, id));
+}
+
+// ─── Group Buys ───────────────────────────────────────────────────────────────
+
+export async function getAllGroupBuys() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(groupBuys).orderBy(desc(groupBuys.createdAt));
+}
+
+export async function getActiveGroupBuys() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(groupBuys)
+    .where(
+      sql`${groupBuys.status} NOT IN ('Draft', 'Complete')`
+    )
+    .orderBy(desc(groupBuys.createdAt));
+}
+
+export async function getGroupBuyById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(groupBuys).where(eq(groupBuys.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createGroupBuy(data: InsertGroupBuy) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(groupBuys).values(data);
+  return result[0];
+}
+
+export async function updateGroupBuy(id: number, data: Partial<InsertGroupBuy>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(groupBuys).set(data).where(eq(groupBuys.id, id));
+}
+
+export async function deleteGroupBuy(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(groupBuys).where(eq(groupBuys.id, id));
+}
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export async function getProductsByGroupBuy(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(products).where(eq(products.groupBuyId, groupBuyId));
+}
+
+export async function getProductById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(products).where(eq(products.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createProduct(data: InsertProduct) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(products).values(data);
+}
+
+export async function updateProduct(id: number, data: Partial<InsertProduct>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(products).set(data).where(eq(products.id, id));
+}
+
+export async function deleteProduct(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(products).where(eq(products.id, id));
+}
+
+// ─── Participation Tiers ──────────────────────────────────────────────────────
+
+export async function getTiersByGroupBuy(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(participationTiers)
+    .where(eq(participationTiers.groupBuyId, groupBuyId))
+    .orderBy(participationTiers.sortOrder);
+}
+
+export async function createTier(data: InsertParticipationTier) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(participationTiers).values(data);
+}
+
+export async function updateTier(id: number, data: Partial<InsertParticipationTier>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(participationTiers).set(data).where(eq(participationTiers.id, id));
+}
+
+export async function deleteTier(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(participationTiers).where(eq(participationTiers.id, id));
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+export async function getOrdersByGroupBuy(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orders)
+    .where(eq(orders.groupBuyId, groupBuyId))
+    .orderBy(desc(orders.createdAt));
+}
+
+export async function getOrdersByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orders)
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt));
+}
+
+export async function getOrderById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createOrder(data: InsertOrder) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(orders).values(data);
+  const insertId = (result[0] as any).insertId as number;
+  return insertId;
+}
+
+export async function updateOrder(id: number, data: Partial<InsertOrder>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders).set(data).where(eq(orders.id, id));
+}
+
+export async function getUserOrderForGroupBuy(userId: number, groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.groupBuyId, groupBuyId)))
+    .limit(1);
+  return result[0];
+}
+
+// ─── Order Items ──────────────────────────────────────────────────────────────
+
+export async function getOrderItems(orderId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+}
+
+export async function createOrderItem(data: InsertOrderItem) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(orderItems).values(data);
+}
+
+export async function deleteOrderItems(orderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(orderItems).where(eq(orderItems.orderId, orderId));
+}
+
+// ─── Group Buy Stats ──────────────────────────────────────────────────────────
+
+export async function getGroupBuyStats(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return { totalCommitted: 0, totalPaid: 0, participantCount: 0, paidCount: 0, shippedCount: 0 };
+
+  const allOrders = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.groupBuyId, groupBuyId));
+
+  const totalCommitted = allOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount as string), 0);
+  const totalPaid = allOrders
+    .filter((o) => o.status === "Paid" || o.status === "Shipped")
+    .reduce((sum, o) => sum + parseFloat(o.totalAmount as string), 0);
+  const participantCount = allOrders.length;
+  const paidCount = allOrders.filter((o) => o.status === "Paid" || o.status === "Shipped").length;
+  const shippedCount = allOrders.filter((o) => o.status === "Shipped").length;
+
+  return { totalCommitted, totalPaid, participantCount, paidCount, shippedCount };
+}
+
+// ─── Test Results ─────────────────────────────────────────────────────────────
+
+export async function getTestResultsByGroupBuy(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(testResults)
+    .where(eq(testResults.groupBuyId, groupBuyId))
+    .orderBy(desc(testResults.createdAt));
+}
+
+export async function getTestResultById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(testResults).where(eq(testResults.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createTestResult(data: InsertTestResult) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(testResults).values(data);
+  const insertId = (result[0] as any).insertId as number;
+  return insertId;
+}
+
+export async function updateTestResult(id: number, data: Partial<InsertTestResult>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(testResults).set(data).where(eq(testResults.id, id));
+}
+
+// ─── Skool Webhook ────────────────────────────────────────────────────────────
+
+export async function getSkoolWebhookConfig() {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(skoolWebhookConfig).limit(1);
+  return result[0];
+}
+
+export async function upsertSkoolWebhookConfig(data: { webhookUrl: string; groupSlug?: string; isActive?: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await getSkoolWebhookConfig();
+  if (existing) {
+    await db.update(skoolWebhookConfig).set(data).where(eq(skoolWebhookConfig.id, existing.id));
+  } else {
+    await db.insert(skoolWebhookConfig).values({ webhookUrl: data.webhookUrl, groupSlug: data.groupSlug, isActive: data.isActive ?? true });
+  }
+}
+
+export async function logSkoolWebhook(data: {
+  groupBuyId?: number;
+  event: "buy_live" | "moq_reached" | "test_results_posted" | "orders_shipped";
+  payload: string;
+  responseStatus?: number;
+  success: boolean;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(skoolWebhookLog).values(data);
+}
+
+export async function getSkoolWebhookLogs(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(skoolWebhookLog).orderBy(desc(skoolWebhookLog.sentAt)).limit(limit);
+}
+
+// ─── Reporting ────────────────────────────────────────────────────────────────
+
+export async function getAdminReportData(groupBuyId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const buy = await getGroupBuyById(groupBuyId);
+  if (!buy) return null;
+
+  const allOrders = await db
+    .select({
+      order: orders,
+      user: users,
+    })
+    .from(orders)
+    .where(eq(orders.groupBuyId, groupBuyId))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .orderBy(desc(orders.createdAt));
+
+  const stats = await getGroupBuyStats(groupBuyId);
+
+  return { buy, orders: allOrders, stats };
+}
