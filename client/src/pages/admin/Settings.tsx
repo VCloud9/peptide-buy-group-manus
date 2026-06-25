@@ -113,7 +113,41 @@ function GhlSetupGuide() {
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold">Step 5 — Tags Reference</h4>
+            <h4 className="text-sm font-semibold">Step 5 — All GHL Workflows to Build</h4>
+            <p className="text-xs text-muted-foreground">Build these in GHL Automation → Workflows in the recommended order:</p>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-1.5 pr-3 font-medium">#</th>
+                    <th className="text-left py-1.5 pr-3 font-medium">Workflow Name</th>
+                    <th className="text-left py-1.5 pr-3 font-medium">Trigger (Tag Added)</th>
+                    <th className="text-left py-1.5 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground divide-y divide-border">
+                  {[
+                    ["1", "PBG — Approve Membership", "pbg-approved", "Webhook POST (see Step 3) → sends invite code to pbg_invite_code field"],
+                    ["2", "PBG — Welcome Email", "pbg-invite-sent", "Send email using {{contact.pbg_invite_code}} — include platform URL + Skool link"],
+                    ["3", "PBG — Payment Instructions", "pbg-payment-pending", "Send email with Zelle (ray@vcloud9.com) and Venmo (@ray-collazo) — ask member to include name + buy name in note"],
+                    ["4", "PBG — Payment Confirmed", "pbg-payment-confirmed", "Send email confirming payment received — include {{contact.pbg_last_buy_name}} and {{contact.pbg_last_order_amount}}"],
+                    ["5", "PBG — Shipping Notification", "pbg-shipped", "Send email with tracking info — include {{contact.pbg_last_tracking_number}} and {{contact.pbg_last_carrier}}"],
+                    ["6", "PBG — New Access Request Alert", "pbg-access-requested", "Internal notification to you (email/SMS) — new membership request came in"],
+                  ].map(([num, name, tag, action]) => (
+                    <tr key={num}>
+                      <td className="py-2 pr-3 text-muted-foreground/50">{num}</td>
+                      <td className="py-2 pr-3 font-medium text-foreground">{name}</td>
+                      <td className="py-2 pr-3"><code className="bg-muted px-1 rounded">{tag}</code></td>
+                      <td className="py-2">{action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 6 — Tags Reference</h4>
             <div className="overflow-x-auto">
               <table className="text-xs w-full">
                 <thead>
@@ -126,17 +160,56 @@ function GhlSetupGuide() {
                   {[
                     ["pbg-access-requested", "Visitor submits the Request Access form"],
                     ["pbg-approved", "You apply this manually in GHL to approve the member"],
-                    ["pbg-invite-sent", "Platform applies this after generating the invite code — use as email trigger"],
-                    ["pbg-member", "Applied when member redeems invite code and joins the platform"],
-                    ["pbg-ordered", "Applied when member places their first order"],
-                    ["pbg-payment-pending", "Applied when order moves to Payment Pending — use to trigger payment instructions email"],
-                    ["pbg-paid", "Applied when payment is confirmed"],
-                    ["pbg-shipped", "Applied when order is shipped — use to trigger shipping notification email"],
-                    ["pbg-complete", "Applied when order is marked Complete"],
+                    ["pbg-invite-sent", "Platform generates invite code — trigger for Welcome email"],
+                    ["pbg-member", "Member redeems invite code and joins the platform"],
+                    ["pbg-ordered", "Member places their first order"],
+                    ["pbg-payment-pending", "Order moves to Payment Pending — trigger for payment instructions email"],
+                    ["pbg-paid", "Payment confirmed internally (pipeline stage update)"],
+                    ["pbg-payment-confirmed", "Admin clicks Mark Paid — trigger for payment confirmation email"],
+                    ["pbg-shipped", "Order is shipped — trigger for shipping notification email"],
+                    ["pbg-complete", "Order is marked Complete"],
                   ].map(([tag, desc]) => (
                     <tr key={tag}>
                       <td className="py-1.5 pr-4"><code className="bg-muted px-1 rounded">{tag}</code></td>
                       <td className="py-1.5">{desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 7 — Custom Fields to Create in GHL</h4>
+            <p className="text-xs text-muted-foreground">Go to GHL Settings → Custom Fields → Contacts and create each field below (all Text type unless noted):</p>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-1.5 pr-4 font-medium">Field Label</th>
+                    <th className="text-left py-1.5 pr-4 font-medium">Field Key (must match exactly)</th>
+                    <th className="text-left py-1.5 font-medium">Used in</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground divide-y divide-border">
+                  {[
+                    ["Invite Code", "pbg_invite_code", "Welcome email template"],
+                    ["Last Buy Name", "pbg_last_buy_name", "Payment confirmed + shipping emails"],
+                    ["Last Order Amount", "pbg_last_order_amount", "Payment confirmed email"],
+                    ["Last Order Status", "pbg_last_order_status", "CRM reference"],
+                    ["Last Tracking Number", "pbg_last_tracking_number", "Shipping notification email"],
+                    ["Last Carrier", "pbg_last_carrier", "Shipping notification email"],
+                    ["Total Orders", "pbg_total_orders", "CRM reference (Number type)"],
+                    ["Total Spent", "pbg_total_spent", "CRM reference (Number type)"],
+                    ["Member Since", "pbg_member_since", "CRM reference"],
+                    ["Invite Code Used", "pbg_invite_code_used", "CRM reference — which code was redeemed"],
+                    ["Last Order Date", "pbg_last_order_date", "CRM reference — date of most recent order"],
+                    ["COA Available", "pbg_coa_available", "CRM reference — yes/no when COA is published"],
+                  ].map(([label, key, usage]) => (
+                    <tr key={key}>
+                      <td className="py-1.5 pr-4 font-medium text-foreground">{label}</td>
+                      <td className="py-1.5 pr-4"><code className="bg-muted px-1 rounded">{key}</code></td>
+                      <td className="py-1.5">{usage}</td>
                     </tr>
                   ))}
                 </tbody>

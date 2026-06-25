@@ -621,3 +621,35 @@ export async function ghlOnMemberApproved(params: {
     return { success: false };
   }
 }
+
+/**
+ * Called when admin clicks "Mark Paid" on an order.
+ * Applies pbg-payment-confirmed tag so GHL Workflow can send a payment confirmation email.
+ * Also updates the last buy name and amount paid custom fields.
+ */
+export async function ghlOnPaymentConfirmed(params: {
+  email: string;
+  name?: string | null;
+  buyName: string;
+  amountPaid: number;
+}): Promise<{ success: boolean; contactId?: string }> {
+  try {
+    const contact = await ghlUpsertContact({
+      email: params.email,
+      tags: [GHL_TAGS.PAYMENT_CONFIRMED],
+      customFields: [
+        { key: GHL_FIELDS.LAST_BUY_NAME, field_value: params.buyName },
+        { key: GHL_FIELDS.LAST_ORDER_AMOUNT, field_value: String(params.amountPaid) },
+        { key: GHL_FIELDS.LAST_ORDER_STATUS, field_value: "Paid" },
+      ],
+    });
+
+    if (contact?.id) {
+      return { success: true, contactId: contact.id };
+    }
+    return { success: false };
+  } catch (e) {
+    console.error("[GHL] onPaymentConfirmed error:", e);
+    return { success: false };
+  }
+}

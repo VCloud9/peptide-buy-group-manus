@@ -138,3 +138,9 @@
 
 ## Round 8 Features
 - [x] Payment instructions modal: shown on My Orders page when order status is Payment Pending, displays Zelle (ray@vcloud9.com) and Venmo (@ray-collazo) with copy buttons and order amount
+
+## Round 9 Features
+- [x] GHL config: add PAYMENT_CONFIRMED tag constant
+- [x] GHL service: ghlOnPaymentConfirmed function — apply pbg-payment-confirmed tag, update GHL custom fields (buy name, amount paid)
+- [x] Server: wire ghlOnPaymentConfirmed into updateStatus mutation when status moves to Paid
+- [x] Admin Settings: update GHL Setup Guide with full workflow table and all custom fields reference

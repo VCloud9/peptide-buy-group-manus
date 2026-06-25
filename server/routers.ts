@@ -71,6 +71,7 @@ import {
   ghlAddContactNote,
   ghlOnAccessRequested,
   ghlOnMemberApproved,
+  ghlOnPaymentConfirmed,
 } from "./ghl/service";
 import { insertGhlSyncLog, getRecentGhlSyncLogs } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -666,12 +667,20 @@ export const appRouter = router({
               }).catch((e) => console.error("[GHL] onPaymentPending error:", e));
             } else if (input.status === "Paid") {
               const stats = await getUserOrderStats(user.id);
+              const buyName = (order as any)?.groupBuy?.title ?? "Group Buy";
               ghlOnPaymentReceived({
                 email: user.email,
                 name: user.name,
                 orderTotal: parseFloat(String(order?.totalAmount ?? 0)),
                 totalSpent: stats.totalSpent,
               }).catch((e) => console.error("[GHL] onPaymentReceived error:", e));
+              // Fire payment-confirmed tag so GHL Workflow sends the confirmation email
+              ghlOnPaymentConfirmed({
+                email: user.email,
+                name: user.name,
+                buyName,
+                amountPaid: parseFloat(String(order?.totalAmount ?? 0)),
+              }).catch((e) => console.error("[GHL] onPaymentConfirmed error:", e));
             } else if (input.status === "Shipped") {
               ghlOnOrderShipped({
                 email: user.email,

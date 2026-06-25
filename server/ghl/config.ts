@@ -48,6 +48,7 @@ export const GHL_TAGS = {
   ORDERED:          "pbg-ordered",
   PAYMENT_PENDING:  "pbg-payment-pending",
   PAID:             "pbg-paid",
+  PAYMENT_CONFIRMED: "pbg-payment-confirmed",
   SHIPPED:          "pbg-shipped",
   COMPLETE:         "pbg-complete",
 } as const;
