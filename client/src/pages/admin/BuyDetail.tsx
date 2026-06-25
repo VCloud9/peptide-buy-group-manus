@@ -317,7 +317,17 @@ export default function AdminBuyDetail() {
           <TabsList className="bg-muted/30">
             <TabsTrigger value="products" className="gap-1.5"><Package size={13} /> Products</TabsTrigger>
             <TabsTrigger value="tiers" className="gap-1.5"><Users size={13} /> Tiers</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-1.5"><FlaskConical size={13} /> Orders ({orders?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="orders" className="gap-1.5">
+              <FlaskConical size={13} /> Orders ({orders?.length ?? 0})
+              {(() => {
+                const pendingCount = orders?.filter((o: any) => o.status === "Payment Pending").length ?? 0;
+                return pendingCount > 0 ? (
+                  <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
+                    {pendingCount}
+                  </span>
+                ) : null;
+              })()}
+            </TabsTrigger>
             <TabsTrigger value="testing" className="gap-1.5"><ShieldCheck size={13} /> Testing</TabsTrigger>
           </TabsList>
 
