@@ -21,6 +21,118 @@
       src="%VITE_ANALYTICS_ENDPOINT%/umami"
       data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
     <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a3da8af6f3b4f26069778f7"></script>
+
+    <!-- Floating chat prompt bubble -->
+    <style>
+      #pbg-chat-bubble {
+        position: fixed;
+        bottom: 88px;
+        right: 80px;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        color: #1e3a5f;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.4;
+        padding: 10px 14px;
+        border-radius: 18px 18px 4px 18px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        max-width: 220px;
+        cursor: pointer;
+        animation: pbg-bubble-in 0.4s cubic-bezier(0.23,1,0.32,1) both;
+        animation-delay: 2.5s;
+        opacity: 0;
+      }
+      #pbg-chat-bubble.pbg-visible {
+        opacity: 1;
+      }
+      #pbg-chat-bubble:hover {
+        box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+        transform: translateY(-1px);
+        transition: all 0.15s ease-out;
+      }
+      #pbg-chat-bubble-close {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 18px;
+        height: 18px;
+        background: #64748b;
+        color: #fff;
+        border-radius: 50%;
+        font-size: 11px;
+        line-height: 18px;
+        text-align: center;
+        cursor: pointer;
+        display: none;
+      }
+      #pbg-chat-bubble:hover #pbg-chat-bubble-close {
+        display: block;
+      }
+      @keyframes pbg-bubble-in {
+        from { opacity: 0; transform: scale(0.85) translateY(8px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @media (max-width: 640px) {
+        #pbg-chat-bubble { right: 70px; bottom: 76px; font-size: 12px; max-width: 180px; }
+      }
+    </style>
+
+    <div id="pbg-chat-bubble" role="button" aria-label="Open chat">
+      <span>💬</span>
+      <span>Have questions? Ask Alex our AI assistant!</span>
+      <span id="pbg-chat-bubble-close" aria-label="Dismiss">✕</span>
+    </div>
+
+    <script>
+      (function() {
+        var bubble = document.getElementById('pbg-chat-bubble');
+        var closeBtn = document.getElementById('pbg-chat-bubble-close');
+        var dismissed = sessionStorage.getItem('pbg-bubble-dismissed');
+
+        if (dismissed) {
+          bubble.style.display = 'none';
+          return;
+        }
+
+        // Show after delay via animation, then mark visible
+        setTimeout(function() {
+          bubble.classList.add('pbg-visible');
+        }, 2500);
+
+        // Auto-dismiss after 12 seconds
+        var autoDismiss = setTimeout(function() {
+          bubble.style.opacity = '0';
+          bubble.style.transition = 'opacity 0.3s ease-out';
+          setTimeout(function() { bubble.style.display = 'none'; }, 300);
+        }, 14500);
+
+        // Click bubble → open chat widget
+        bubble.addEventListener('click', function(e) {
+          if (e.target === closeBtn) return;
+          clearTimeout(autoDismiss);
+          bubble.style.display = 'none';
+          sessionStorage.setItem('pbg-bubble-dismissed', '1');
+          // Trigger the GHL widget open button if present
+          var widgetBtn = document.querySelector('[data-widget-id] button, .chat-widget-button, #chat-widget-open');
+          if (widgetBtn) widgetBtn.click();
+        });
+
+        // X button → dismiss
+        closeBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          clearTimeout(autoDismiss);
+          bubble.style.opacity = '0';
+          bubble.style.transition = 'opacity 0.2s ease-out';
+          setTimeout(function() { bubble.style.display = 'none'; }, 200);
+          sessionStorage.setItem('pbg-bubble-dismissed', '1');
+        });
+      })();
+    </script>
   </body>
 
 </html>
