@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 
 // Public pages
 import Home from "./pages/Home";
+import HowToJoin from "./pages/HowToJoin";
 
 // Member pages
 import MemberDashboard from "./pages/member/Dashboard";
@@ -33,6 +34,7 @@ function Router() {
     <Switch>
       {/* Public */}
       <Route path="/" component={Home} />
+      <Route path="/join" component={HowToJoin} />
 
       {/* Member — gated behind invite code */}
       <Route path="/dashboard">{() => <InviteGate><MemberDashboard /></InviteGate>}</Route>

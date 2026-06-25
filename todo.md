@@ -124,3 +124,14 @@
 - [x] Frontend: member note display/edit on My Orders page (editable while Committed/Payment Pending)
 - [x] Frontend: admin note field in admin Orders tab per order row
 - [x] Frontend: bulk resync all members button in admin Settings page
+
+## Round 7 Features
+- [x] Schema: membershipRequests table (name, email, skoolUsername, status, inviteCode, createdAt)
+- [x] Server: submitAccessRequest public procedure
+- [x] Server: GHL webhook handler for pbg-approved tag → generate invite code, update GHL pbg_invite_code field, apply pbg-invite-sent tag
+- [x] Server: admin createMember procedure (manual user + invite code creation)
+- [x] GHL config: add Membership Requested pipeline stage, pbg-access-requested, pbg-approved, pbg-invite-sent tags, pbg_invite_code custom field
+- [x] Frontend: How to Join public page (/join) with benefits, safety/testing, transparency, FAQ, Request Access form
+- [x] Frontend: Admin create member dialog in Members page
+- [x] Frontend: GHL setup guide panel in admin Settings
+- [x] Frontend: Add /join to nav and landing page CTAs

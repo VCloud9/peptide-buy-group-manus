@@ -20,6 +20,8 @@ import {
   GhlSyncLog,
   InsertGhlSyncLog,
   ghlSyncLogs,
+  membershipRequests,
+  MembershipRequest,
   skoolWebhookConfig,
   skoolWebhookLog,
   testResults,
@@ -559,4 +561,47 @@ export async function getRecentGhlSyncLogs(limit = 20): Promise<GhlSyncLog[]> {
     .from(ghlSyncLogs)
     .orderBy(desc(ghlSyncLogs.createdAt))
     .limit(limit);
+}
+
+// ─── Membership Requests ─────────────────────────────────────────────────────
+
+export async function createMembershipRequest(data: {
+  name: string;
+  email: string;
+  skoolUsername?: string | null;
+  message?: string | null;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(membershipRequests).values({
+    name: data.name,
+    email: data.email,
+    skoolUsername: data.skoolUsername ?? null,
+    message: data.message ?? null,
+    status: "pending",
+  });
+  return (result as any).insertId;
+}
+
+export async function getMembershipRequestByEmail(email: string): Promise<MembershipRequest | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(membershipRequests).where(eq(membershipRequests.email, email)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllMembershipRequests(): Promise<MembershipRequest[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(membershipRequests).orderBy(desc(membershipRequests.createdAt));
+}
+
+export async function updateMembershipRequest(id: number, data: Partial<{
+  status: "pending" | "approved" | "rejected" | "invite_sent";
+  inviteCode: string | null;
+  ghlContactId: string | null;
+}>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(membershipRequests).set(data).where(eq(membershipRequests.id, id));
 }

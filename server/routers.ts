@@ -51,6 +51,10 @@ import {
   getInviteCodeUses,
   getUserOrderStats,
   getOrderWithUser,
+  createMembershipRequest,
+  getMembershipRequestByEmail,
+  getAllMembershipRequests,
+  updateMembershipRequest,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -65,6 +69,8 @@ import {
   ghlOnOrderComplete,
   ghlResyncMember,
   ghlAddContactNote,
+  ghlOnAccessRequested,
+  ghlOnMemberApproved,
 } from "./ghl/service";
 import { insertGhlSyncLog, getRecentGhlSyncLogs } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -1098,6 +1104,155 @@ export const appRouter = router({
           }
         } catch (e) { console.error("[GHL] updateAdminNote GHL sync error:", e); }
         return { success: true };
+      }),
+  }),
+
+  // ─── Membership Requests ─────────────────────────────────────────────────────
+
+  membership: router({
+    /** Public: submit a membership access request */
+    requestAccess: publicProcedure
+      .input(z.object({
+        name: z.string().min(2).max(255),
+        email: z.string().email(),
+        skoolUsername: z.string().max(128).optional(),
+        message: z.string().max(1000).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Check for duplicate
+        const existing = await getMembershipRequestByEmail(input.email);
+        if (existing) {
+          if (existing.status === "invite_sent") {
+            return { success: true, alreadySent: true };
+          }
+          return { success: true, duplicate: true };
+        }
+        const id = await createMembershipRequest({
+          name: input.name,
+          email: input.email,
+          skoolUsername: input.skoolUsername ?? null,
+          message: input.message ?? null,
+        });
+        // Push to GHL non-blocking
+        try {
+          const ghlResult = await ghlOnAccessRequested({
+            email: input.email,
+            name: input.name,
+            skoolUsername: input.skoolUsername ?? null,
+          });
+          if (ghlResult.contactId) {
+            await updateMembershipRequest(id, { ghlContactId: ghlResult.contactId });
+          }
+          await insertGhlSyncLog({
+            direction: "outbound",
+            eventType: "access_request",
+            email: input.email,
+            payload: JSON.stringify({ name: input.name, skoolUsername: input.skoolUsername }),
+            success: ghlResult.success,
+          });
+        } catch (e) { console.error("[GHL] requestAccess sync error:", e); }
+        return { success: true };
+      }),
+
+    /** Admin: list all membership requests */
+    listRequests: adminProcedure.query(async () => {
+      return getAllMembershipRequests();
+    }),
+
+    /** Admin: manually create a member (generates invite code) */
+    createMember: adminProcedure
+      .input(z.object({
+        name: z.string().min(2).max(255),
+        email: z.string().email(),
+        skoolUsername: z.string().max(128).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Generate a unique invite code
+        const code = `PBG-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const id = await createMembershipRequest({
+          name: input.name,
+          email: input.email,
+          skoolUsername: input.skoolUsername ?? null,
+          message: "Manually created by admin",
+        });
+        await updateMembershipRequest(id, { status: "invite_sent", inviteCode: code });
+        // Create invite code in the invite_codes table
+        await createInviteCode({
+          code,
+          label: `Admin-created for ${input.name} (${input.email})`,
+          maxUses: 1,
+          createdBy: 0, // system
+        });
+        // Push to GHL non-blocking
+        try {
+          const ghlResult = await ghlOnMemberApproved({
+            email: input.email,
+            name: input.name,
+            inviteCode: code,
+          });
+          await insertGhlSyncLog({
+            direction: "outbound",
+            eventType: "admin_create_member",
+            email: input.email,
+            payload: JSON.stringify({ name: input.name, inviteCode: code }),
+            success: ghlResult.success,
+          });
+        } catch (e) { console.error("[GHL] createMember GHL sync error:", e); }
+        return { success: true, inviteCode: code };
+      }),
+
+    /** GHL Webhook: called when pbg-approved tag is applied in GHL */
+    approveFromGhl: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        name: z.string().optional(),
+        secret: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Validate webhook secret
+        const webhookSecret = process.env.GHL_WEBHOOK_SECRET;
+        if (webhookSecret && input.secret !== webhookSecret) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid webhook secret" });
+        }
+        // Find existing request or create one
+        let req = await getMembershipRequestByEmail(input.email);
+        if (!req) {
+          const id = await createMembershipRequest({
+            name: input.name ?? input.email,
+            email: input.email,
+          });
+          req = (await getAllMembershipRequests()).find((r) => r.id === id) ?? null;
+        }
+        if (!req) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create request" });
+        if (req.status === "invite_sent" && req.inviteCode) {
+          return { success: true, inviteCode: req.inviteCode, alreadySent: true };
+        }
+        // Generate invite code
+        const code = `PBG-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        await updateMembershipRequest(req.id, { status: "invite_sent", inviteCode: code });
+        // Create invite code in the invite_codes table
+        await createInviteCode({
+          code,
+          label: `GHL-approved for ${input.name ?? input.email}`,
+          maxUses: 1,
+          createdBy: 0,
+        });
+        // Push invite code back to GHL
+        try {
+          const ghlResult = await ghlOnMemberApproved({
+            email: input.email,
+            name: input.name ?? null,
+            inviteCode: code,
+          });
+          await insertGhlSyncLog({
+            direction: "outbound",
+            eventType: "ghl_approved_invite_sent",
+            email: input.email,
+            payload: JSON.stringify({ inviteCode: code, contactId: ghlResult.contactId }),
+            success: ghlResult.success,
+          });
+        } catch (e) { console.error("[GHL] approveFromGhl sync error:", e); }
+        return { success: true, inviteCode: code };
       }),
   }),
 

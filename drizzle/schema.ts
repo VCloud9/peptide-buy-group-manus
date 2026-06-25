@@ -257,3 +257,19 @@ export const ghlSyncLogs = mysqlTable("ghl_sync_logs", {
 });
 export type GhlSyncLog = typeof ghlSyncLogs.$inferSelect;
 export type InsertGhlSyncLog = typeof ghlSyncLogs.$inferInsert;
+
+// ─── Membership Requests ─────────────────────────────────────────────────────
+export const membershipRequests = mysqlTable("membership_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  skoolUsername: varchar("skoolUsername", { length: 128 }),
+  message: text("message"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "invite_sent"]).default("pending").notNull(),
+  inviteCode: varchar("inviteCode", { length: 32 }),
+  ghlContactId: varchar("ghlContactId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MembershipRequest = typeof membershipRequests.$inferSelect;
+export type InsertMembershipRequest = typeof membershipRequests.$inferInsert;

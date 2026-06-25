@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { ArrowUpDown, CheckCircle2, ExternalLink, RefreshCw, Send, XCircle, Zap } from "lucide-react";
+import { ArrowUpDown, BookOpen, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, RefreshCw, Send, XCircle, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +14,140 @@ const WEBHOOK_EVENTS = [
   { key: "test_results_posted", label: "Test Results Posted", desc: "Fires when a COA is published" },
   { key: "orders_shipped", label: "Orders Shipped", desc: "Fires when a buy transitions to Distributing status" },
 ] as const;
+
+// ─── GHL Setup Guide ─────────────────────────────────────────────────────────
+
+function GhlSetupGuide() {
+  const [open, setOpen] = useState(false);
+  const webhookUrl = `${window.location.origin}/api/trpc/membership.approveFromGhl`;
+
+  return (
+    <div className="glass-card p-6 space-y-4">
+      <button
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-3">
+          <BookOpen size={16} className="text-primary" />
+          <div>
+            <h3 className="font-semibold text-sm">GHL Membership Automation Setup Guide</h3>
+            <p className="text-xs text-muted-foreground">Step-by-step instructions to wire up the approval workflow in GoHighLevel</p>
+          </div>
+        </div>
+        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+      </button>
+
+      {open && (
+        <div className="space-y-6 pt-2 border-t border-border">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              When someone submits the Request Access form on the How to Join page, the platform creates a GHL contact
+              and applies the <code className="bg-muted px-1 rounded">pbg-access-requested</code> tag. You then approve
+              them in GHL by applying <code className="bg-muted px-1 rounded">pbg-approved</code>, which triggers a
+              webhook back to this platform. The platform generates an invite code, writes it to the GHL contact's
+              custom field, and applies <code className="bg-muted px-1 rounded">pbg-invite-sent</code> — which your
+              GHL email workflow uses to send the welcome email automatically.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 1 — Create the Custom Field in GHL</h4>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>In GHL, go to <strong>Settings → Custom Fields → Contacts</strong></li>
+              <li>Click <strong>Add Field</strong></li>
+              <li>Field Label: <code className="bg-muted px-1 rounded">Invite Code</code></li>
+              <li>Field Key: <code className="bg-muted px-1 rounded">pbg_invite_code</code> (must match exactly)</li>
+              <li>Field Type: <strong>Text</strong></li>
+              <li>Save the field</li>
+            </ol>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 2 — Add the Pipeline Stage</h4>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>Go to your <strong>Peptide Buy Group</strong> pipeline in GHL</li>
+              <li>Add a new stage called <strong>Membership Requested</strong></li>
+              <li>Copy the stage ID from the URL or pipeline settings</li>
+              <li>Update <code className="bg-muted px-1 rounded">GHL_STAGES.MEMBERSHIP_REQUESTED</code> in <code className="bg-muted px-1 rounded">server/ghl/config.ts</code> with the real ID</li>
+            </ol>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 3 — Create the Approval Workflow in GHL</h4>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>Go to <strong>Automation → Workflows → Create Workflow</strong></li>
+              <li>Name it: <strong>PBG — Approve Membership</strong></li>
+              <li>Trigger: <strong>Contact Tag</strong> → Tag Added → <code className="bg-muted px-1 rounded">pbg-approved</code></li>
+              <li>Action 1: <strong>Webhook</strong> → POST to the URL below</li>
+              <li>Action 2: <strong>Send Email</strong> using the template below (fires after webhook completes)</li>
+            </ol>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium">Webhook URL (POST)</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-muted px-2 py-1.5 rounded flex-1 break-all">{webhookUrl}</code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 bg-background"
+                  onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success("Copied"); }}
+                >
+                  Copy
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Webhook body (JSON): <code className="bg-muted px-1 rounded">{'{"email": "{{contact.email}}", "name": "{{contact.name}}"}' }</code>
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 4 — Create the Welcome Email Template</h4>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>In GHL, go to <strong>Marketing → Emails → Templates</strong></li>
+              <li>Create a new template named <strong>PBG Welcome + Invite Code</strong></li>
+              <li>In the email body, use <code className="bg-muted px-1 rounded">{'{{'+'contact.pbg_invite_code'+'}}' }</code> to insert the invite code</li>
+              <li>Include a link to the platform: <code className="bg-muted px-1 rounded">{window.location.origin}</code></li>
+              <li>In your workflow (Step 3), set the Send Email action to use this template</li>
+              <li>Set the trigger for the email action to: tag <code className="bg-muted px-1 rounded">pbg-invite-sent</code> is added</li>
+            </ol>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Step 5 — Tags Reference</h4>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-1.5 pr-4 font-medium">Tag</th>
+                    <th className="text-left py-1.5 font-medium">When it's applied</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground divide-y divide-border">
+                  {[
+                    ["pbg-access-requested", "Visitor submits the Request Access form"],
+                    ["pbg-approved", "You apply this manually in GHL to approve the member"],
+                    ["pbg-invite-sent", "Platform applies this after generating the invite code — use as email trigger"],
+                    ["pbg-member", "Applied when member redeems invite code and joins the platform"],
+                    ["pbg-ordered", "Applied when member places their first order"],
+                    ["pbg-payment-pending", "Applied when order moves to Payment Pending — use to trigger payment instructions email"],
+                    ["pbg-paid", "Applied when payment is confirmed"],
+                    ["pbg-shipped", "Applied when order is shipped — use to trigger shipping notification email"],
+                    ["pbg-complete", "Applied when order is marked Complete"],
+                  ].map(([tag, desc]) => (
+                    <tr key={tag}>
+                      <td className="py-1.5 pr-4"><code className="bg-muted px-1 rounded">{tag}</code></td>
+                      <td className="py-1.5">{desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function GhlSyncLogsPanel() {
   const utils = trpc.useUtils();
@@ -283,6 +417,9 @@ export default function AdminSettings() {
 
         {/* GHL Sync Logs */}
         <GhlSyncLogsPanel />
+
+        {/* GHL Setup Guide */}
+        <GhlSetupGuide />
       </div>
     </AppLayout>
   );

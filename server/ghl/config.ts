@@ -10,6 +10,7 @@ export const GHL_LOCATION_ID = "t9b6FAsOCqtsJ57Zl5il";
 export const GHL_PIPELINE_ID = "NHCezPhyoywoNZ31hNXt";
 
 export const GHL_STAGES = {
+  MEMBERSHIP_REQUESTED:    "PLACEHOLDER_MEMBERSHIP_REQUESTED",  // TODO: replace with real stage ID after creating in GHL
   MEMBER_REGISTERED:       "0cc7a96b-ed9c-4bc9-987d-190dc7ab592a",
   ORDER_COMMITTED:         "197babac-f41d-4176-92db-0200fbfdc0c8",
   PAYMENT_PENDING:         "336a6722-7800-42b5-a49e-37d09eda5a48",
@@ -34,10 +35,14 @@ export const GHL_FIELDS = {
   LAST_TRACKING:      "contact.pbg_last_tracking_number",
   LAST_CARRIER:       "contact.pbg_last_carrier",
   COA_AVAILABLE:      "contact.pbg_coa_available",
+  INVITE_CODE:        "contact.pbg_invite_code",  // TODO: create this custom field in GHL
 } as const;
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 export const GHL_TAGS = {
+  ACCESS_REQUESTED: "pbg-access-requested",
+  APPROVED:         "pbg-approved",
+  INVITE_SENT:      "pbg-invite-sent",
   MEMBER:           "pbg-member",
   VERIFIED:         "pbg-verified",
   ORDERED:          "pbg-ordered",

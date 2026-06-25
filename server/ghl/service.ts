@@ -546,3 +546,78 @@ export async function ghlResyncMember(member: {
     return { success: false };
   }
 }
+
+/**
+ * Called when someone submits a membership access request via the How to Join form.
+ * Creates/upserts the GHL contact, applies pbg-access-requested tag,
+ * and moves them to the Membership Requested pipeline stage.
+ */
+export async function ghlOnAccessRequested(params: {
+  email: string;
+  name: string;
+  skoolUsername?: string | null;
+}): Promise<{ success: boolean; contactId?: string }> {
+  try {
+    const [firstName, ...rest] = params.name.split(" ");
+    const lastName = rest.join(" ") || undefined;
+
+    const customFields: CustomFieldValue[] = [];
+    if (params.skoolUsername) {
+      customFields.push({ key: "contact.skool_username", field_value: params.skoolUsername });
+    }
+
+    const contact = await ghlUpsertContact({
+      email: params.email,
+      firstName: firstName || undefined,
+      lastName,
+      tags: [GHL_TAGS.ACCESS_REQUESTED],
+      customFields: customFields.length ? customFields : undefined,
+    });
+
+    if (contact?.id) {
+      // Only move to Membership Requested stage if the stage ID has been configured
+      if (!GHL_STAGES.MEMBERSHIP_REQUESTED.startsWith("PLACEHOLDER")) {
+        await ghlUpsertOpportunity({
+          contactId: contact.id,
+          contactName: params.name,
+          stageId: GHL_STAGES.MEMBERSHIP_REQUESTED,
+          title: `PBG — ${params.name}`,
+        });
+      }
+      return { success: true, contactId: contact.id };
+    }
+    return { success: false };
+  } catch (e) {
+    console.error("[GHL] onAccessRequested error:", e);
+    return { success: false };
+  }
+}
+
+/**
+ * Called when the pbg-approved tag is applied in GHL (via webhook).
+ * Updates the GHL contact with the generated invite code in the pbg_invite_code field
+ * and applies the pbg-invite-sent tag so the GHL Workflow can trigger the welcome email.
+ */
+export async function ghlOnMemberApproved(params: {
+  email: string;
+  name?: string | null;
+  inviteCode: string;
+}): Promise<{ success: boolean; contactId?: string }> {
+  try {
+    const contact = await ghlUpsertContact({
+      email: params.email,
+      tags: [GHL_TAGS.INVITE_SENT],
+      customFields: [
+        { key: GHL_FIELDS.INVITE_CODE, field_value: params.inviteCode },
+      ],
+    });
+
+    if (contact?.id) {
+      return { success: true, contactId: contact.id };
+    }
+    return { success: false };
+  } catch (e) {
+    console.error("[GHL] onMemberApproved error:", e);
+    return { success: false };
+  }
+}

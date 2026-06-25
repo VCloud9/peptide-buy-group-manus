@@ -111,9 +111,14 @@ export default function Home() {
                 </Button>
               </>
             ) : (
-              <Button asChild size="lg" className="gap-2">
-                <a href={getLoginUrl()}>Sign In to Get Started <ArrowRight size={16} /></a>
-              </Button>
+              <>
+                <Button asChild size="lg" className="gap-2">
+                  <Link href="/join">How to Join <ArrowRight size={16} /></Link>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <a href={getLoginUrl()}>Sign In</a>
+                </Button>
+              </>
             )}
           </div>
         </div>
