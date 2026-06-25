@@ -135,3 +135,6 @@
 - [x] Frontend: Admin create member dialog in Members page
 - [x] Frontend: GHL setup guide panel in admin Settings
 - [x] Frontend: Add /join to nav and landing page CTAs
+
+## Round 8 Features
+- [x] Payment instructions modal: shown on My Orders page when order status is Payment Pending, displays Zelle (ray@vcloud9.com) and Venmo (@ray-collazo) with copy buttons and order amount
