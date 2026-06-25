@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, Download, FileDown, FlaskConical, MessageSquare, Package, Pencil, Plus, Save, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { CheckCircle, ChevronLeft, Download, FileDown, FlaskConical, MessageSquare, Package, Pencil, Plus, Save, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -29,11 +29,15 @@ function OrderRow({
   onStatusChange,
   onTrackClick,
   onSaveAdminNote,
+  onMarkPaid,
+  isMarkingPaid,
 }: {
   order: any;
   onStatusChange: (v: string) => void;
   onTrackClick: () => void;
   onSaveAdminNote: (note: string) => void;
+  onMarkPaid: () => void;
+  isMarkingPaid: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [adminNote, setAdminNote] = useState<string>(order.adminNotes ?? "");
@@ -55,6 +59,21 @@ function OrderRow({
               {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
+          {order.status === "Payment Pending" && (
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+              onClick={onMarkPaid}
+              disabled={isMarkingPaid}
+            >
+              {isMarkingPaid ? (
+                <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <CheckCircle size={11} />
+              )}
+              Mark Paid
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onTrackClick}>
             <Package size={11} /> Track
           </Button>
@@ -477,6 +496,8 @@ export default function AdminBuyDetail() {
                         setTrackingDialog(true);
                       }}
                       onSaveAdminNote={(note) => updateAdminNote.mutate({ orderId: order.id, note })}
+                      onMarkPaid={() => updateOrderStatus.mutate({ id: order.id, status: "Paid" })}
+                      isMarkingPaid={updateOrderStatus.isPending && updateOrderStatus.variables?.id === order.id && updateOrderStatus.variables?.status === "Paid"}
                     />
                   ))}
                 </div>
