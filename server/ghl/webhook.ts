@@ -3,10 +3,14 @@
  * Handles events pushed from GoHighLevel back to the platform.
  * Registered at POST /api/ghl/webhook
  *
- * Supported inbound events:
- * - ContactTagAdded / ContactTagRemoved  → log for visibility
- * - OpportunityStageChanged              → log for visibility (future: sync order status)
- * - ContactUpdated                       → update member profile if email matches
+ * GHL webhook payloads vary by workflow action type.
+ * Some include an explicit "type" field; others (e.g. Contact Updated action)
+ * send a flat contact object with no type discriminator.
+ *
+ * Detection strategy:
+ *  1. Check payload.type or payload.event for explicit event types
+ *  2. Fall back to shape-based detection: if payload has email/name fields,
+ *     treat it as a ContactUpdated event
  */
 
 import type { Express, Request, Response } from "express";
@@ -20,6 +24,72 @@ function validateSecret(req: Request): boolean {
   return incoming === secret;
 }
 
+/**
+ * Resolve the event type from the GHL payload.
+ * GHL does not always include a "type" field — fall back to shape detection.
+ */
+function resolveEventType(payload: Record<string, unknown>): string {
+  // Explicit type field (some GHL actions include this)
+  if (typeof payload.type === "string" && payload.type) return payload.type;
+  if (typeof payload.event === "string" && payload.event) return payload.event;
+
+  // Shape-based detection: flat contact object with email or id
+  // GHL "Contact Updated" workflow action sends: { id, name, email, phone, ... }
+  if (
+    (typeof payload.email === "string" || typeof payload.id === "string") &&
+    !payload.opportunities &&
+    !payload.tags
+  ) {
+    return "ContactUpdated";
+  }
+
+  // Tag change events typically include a "tags" array
+  if (Array.isArray(payload.tags)) {
+    return "ContactTagChanged";
+  }
+
+  // Opportunity events typically include an "opportunities" array or stageId
+  if (payload.stageId || payload.pipelineId) {
+    return "OpportunityStageChanged";
+  }
+
+  return "Unknown";
+}
+
+/**
+ * Extract contact email from various GHL payload shapes.
+ */
+function extractEmail(payload: Record<string, unknown>): string | undefined {
+  if (typeof payload.email === "string") return payload.email;
+  const contact = payload.contact as Record<string, unknown> | undefined;
+  if (contact && typeof contact.email === "string") return contact.email;
+  return undefined;
+}
+
+/**
+ * Extract contact name from various GHL payload shapes.
+ * GHL sends "name" (full name), "fullName", or separate "firstName"/"lastName".
+ */
+function extractName(payload: Record<string, unknown>): string | undefined {
+  if (typeof payload.name === "string" && payload.name) return payload.name;
+  if (typeof payload.fullName === "string" && payload.fullName) return payload.fullName;
+  const contact = payload.contact as Record<string, unknown> | undefined;
+  if (contact) {
+    if (typeof contact.name === "string" && contact.name) return contact.name;
+    if (typeof contact.fullName === "string" && contact.fullName) return contact.fullName;
+    const first = typeof contact.firstName === "string" ? contact.firstName : "";
+    const last = typeof contact.lastName === "string" ? contact.lastName : "";
+    const combined = `${first} ${last}`.trim();
+    if (combined) return combined;
+  }
+  // Top-level firstName/lastName
+  const first = typeof payload.firstName === "string" ? payload.firstName : "";
+  const last = typeof payload.lastName === "string" ? payload.lastName : "";
+  const combined = `${first} ${last}`.trim();
+  if (combined) return combined;
+  return undefined;
+}
+
 export function registerGhlWebhookRoute(app: Express) {
   app.post("/api/ghl/webhook", async (req: Request, res: Response) => {
     if (!validateSecret(req)) {
@@ -28,36 +98,48 @@ export function registerGhlWebhookRoute(app: Express) {
     }
 
     const payload = req.body as Record<string, unknown>;
-    const eventType = (payload.type ?? payload.event ?? "") as string;
+    const eventType = resolveEventType(payload);
 
-    console.log(`[GHL Webhook] Received event: ${eventType}`, JSON.stringify(payload).slice(0, 200));
+    console.log(`[GHL Webhook] Received event: ${eventType}`, JSON.stringify(payload).slice(0, 300));
 
     try {
       switch (eventType) {
         case "ContactUpdated": {
-          // If GHL updates a contact's name/phone, sync back to the platform user
-          const email = (payload.email ?? (payload.contact as any)?.email) as string | undefined;
-          const name = (payload.fullName ?? (payload.contact as any)?.fullName) as string | undefined;
+          const email = extractEmail(payload);
+          const name = extractName(payload);
+
+          console.log(`[GHL Webhook] ContactUpdated — email: ${email}, name: ${name}`);
+
           if (email) {
             const user = await getUserByEmail(email);
-            if (user && name && name !== user.name) {
-              await updateUserProfile(user.id, { name });
-              console.log(`[GHL Webhook] Updated user name for ${email} to "${name}"`);
+            if (user) {
+              if (name && name !== user.name) {
+                await updateUserProfile(user.id, { name });
+                console.log(`[GHL Webhook] ✓ Synced name for ${email}: "${user.name}" → "${name}"`);
+              } else if (!name) {
+                console.log(`[GHL Webhook] No name in payload for ${email}, skipping name sync`);
+              } else {
+                console.log(`[GHL Webhook] Name unchanged for ${email}, no update needed`);
+              }
+            } else {
+              console.log(`[GHL Webhook] No platform user found for email: ${email}`);
             }
+          } else {
+            console.log(`[GHL Webhook] ContactUpdated payload has no email — cannot sync`);
           }
           break;
         }
 
+        case "ContactTagChanged":
         case "ContactTagAdded":
         case "ContactTagRemoved":
         case "OpportunityStageChanged":
         case "OpportunityCreated":
-          // Log for visibility — no action needed in V1
           console.log(`[GHL Webhook] Logged event: ${eventType}`);
           break;
 
         default:
-          console.log(`[GHL Webhook] Unhandled event type: ${eventType}`);
+          console.log(`[GHL Webhook] Unrecognized event type: "${eventType}" — raw payload logged above`);
       }
 
       res.json({ received: true, event: eventType });

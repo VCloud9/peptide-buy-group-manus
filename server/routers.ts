@@ -856,7 +856,8 @@ export const appRouter = router({
 
   skool: router({
     getConfig: adminProcedure.query(async () => {
-      return getSkoolWebhookConfig();
+      const config = await getSkoolWebhookConfig();
+      return config ?? { id: null, webhookUrl: null, groupSlug: null, isActive: true, createdAt: null, updatedAt: null };
     }),
 
     saveConfig: adminProcedure
