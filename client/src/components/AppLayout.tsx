@@ -6,18 +6,20 @@ import {
   BarChart3,
   ChevronDown,
   ClipboardList,
+  ExternalLink,
   FlaskConical,
   KeyRound,
-  ExternalLink,
   LayoutDashboard,
   LogOut,
+  Menu,
   Package,
   Settings,
   ShoppingBag,
   Users,
+  X,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "./ui/button";
 import {
@@ -67,6 +69,21 @@ export function AppLayout({ children, showAdmin = false }: Props) {
     },
   });
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
   const isAdmin = user?.role === "admin" || user?.role === "owner";
   const navItems = showAdmin && isAdmin ? adminNav : memberNav;
 
@@ -102,7 +119,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <span
@@ -141,46 +158,130 @@ export function AppLayout({ children, showAdmin = false }: Props) {
             )}
           </nav>
 
-          {/* User menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 text-sm">
-                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-                  {user?.name?.[0]?.toUpperCase() ?? "?"}
-                </div>
-                <span className="hidden sm:block max-w-[120px] truncate">{user?.name ?? user?.email}</span>
-                <ChevronDown size={14} className="text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link href="/profile">Profile & Shipping</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/my-orders">My Orders</Link>
-              </DropdownMenuItem>
-              {isAdmin && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={showAdmin ? "/dashboard" : "/admin"}>
-                      {showAdmin ? "Member View" : "Admin Panel"}
-                    </Link>
-                  </DropdownMenuItem>
-                </>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => logoutMutation.mutate()}
-              >
-                <LogOut size={14} className="mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Right side: user menu + mobile hamburger */}
+          <div className="flex items-center gap-2">
+            {/* User dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 text-sm">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                    {user?.name?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                  <span className="hidden sm:block max-w-[120px] truncate">{user?.name ?? user?.email}</span>
+                  <ChevronDown size={14} className="text-muted-foreground hidden sm:block" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">Profile & Shipping</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/my-orders">My Orders</Link>
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={showAdmin ? "/dashboard" : "/admin"}>
+                        {showAdmin ? "Member View" : "Admin Panel"}
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => logoutMutation.mutate()}
+                >
+                  <LogOut size={14} className="mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Mobile hamburger button */}
+            <button
+              className="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            >
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Mobile drawer overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer panel */}
+      <div
+        className={cn(
+          "md:hidden fixed top-14 left-0 right-0 z-30 bg-background border-b border-border shadow-lg transition-all duration-200",
+          mobileOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"
+        )}
+      >
+        <nav className="container py-3 space-y-0.5">
+          {/* Nav items */}
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <span
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors",
+                  location === item.href || location.startsWith(item.href + "/")
+                    ? "bg-secondary text-secondary-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                )}
+              >
+                {item.icon}
+                {item.label}
+              </span>
+            </Link>
+          ))}
+
+          {/* Community link — member view only */}
+          {!showAdmin && (
+            <a
+              href="https://www.skool.com/peptide-buyer-group"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              onClick={() => setMobileOpen(false)}
+            >
+              <ExternalLink size={16} />
+              Community (Skool)
+            </a>
+          )}
+
+          {/* Switch between member/admin */}
+          {isAdmin && (
+            <>
+              <div className="border-t border-border my-1" />
+              <Link href={showAdmin ? "/dashboard" : "/admin"}>
+                <span className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors">
+                  <Zap size={16} />
+                  {showAdmin ? "Switch to Member View" : "Switch to Admin Panel"}
+                </span>
+              </Link>
+            </>
+          )}
+
+          {/* Sign out */}
+          <div className="border-t border-border my-1" />
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
+        </nav>
+      </div>
 
       {/* Main content */}
       <main className="flex-1">{children}</main>
