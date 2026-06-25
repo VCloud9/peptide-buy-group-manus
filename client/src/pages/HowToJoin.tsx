@@ -199,6 +199,9 @@ export default function HowToJoin() {
             Peptide Buy Group
           </Link>
           <div className="flex items-center gap-3">
+            <Link href="/faq">
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex">FAQ</Button>
+            </Link>
             <a href="https://www.skool.com/peptide-buyer-group" target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm">
                 Join Skool <ExternalLink className="w-3 h-3 ml-1" />

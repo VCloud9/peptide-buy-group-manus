@@ -144,3 +144,9 @@
 - [x] GHL service: ghlOnPaymentConfirmed function — apply pbg-payment-confirmed tag, update GHL custom fields (buy name, amount paid)
 - [x] Server: wire ghlOnPaymentConfirmed into updateStatus mutation when status moves to Paid
 - [x] Admin Settings: update GHL Setup Guide with full workflow table and all custom fields reference
+
+## Round 10 Features
+- [x] FAQ/knowledgebase page (/faq) — public, searchable, categorized, founder credibility section
+- [x] Wire /faq into landing page nav and How to Join page
+- [x] GHL AI conversation agent prompt (written document)
+- [x] GHL AI voice agent prompt (written document)

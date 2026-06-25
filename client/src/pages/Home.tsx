@@ -61,15 +61,25 @@ export default function Home() {
             <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
           </span>
           <div className="flex items-center gap-3">
+            {!loading && !isAuthenticated && (
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href="/faq">FAQ</Link>
+              </Button>
+            )}
             {!loading && (
               isAuthenticated ? (
                 <Button asChild size="sm">
                   <Link href="/dashboard">Go to Dashboard <ArrowRight size={14} className="ml-1" /></Link>
                 </Button>
               ) : (
-                <Button asChild size="sm">
-                  <a href={getLoginUrl()}>Sign In <ArrowRight size={14} className="ml-1" /></a>
-                </Button>
+                <>
+                  <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                    <Link href="/join">How to Join</Link>
+                  </Button>
+                  <Button asChild size="sm">
+                    <a href={getLoginUrl()}>Sign In <ArrowRight size={14} className="ml-1" /></a>
+                  </Button>
+                </>
               )
             )}
           </div>
