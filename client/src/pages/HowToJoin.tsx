@@ -469,6 +469,10 @@ export default function HowToJoin() {
                 q: "Is this legal?",
                 a: "Peptides sold for research purposes are legal to purchase in the United States. Our group buys are organized for research use. Members are responsible for understanding and complying with the laws in their own jurisdiction.",
               },
+              {
+                q: "How do I suggest a new product for a future group buy?",
+                a: "Post your suggestion in the Skool community group — there's a dedicated discussion thread for product requests. If enough members express interest, we'll evaluate the product category, research potential vendors, and run it through our vetting process before organizing a buy. The more specific you can be (product type, use case, estimated quantity you'd need), the easier it is for us to assess demand and find a qualified supplier. We review all suggestions and will always let the community know if we're moving forward or why we're passing on something.",
+              },
             ].map((item, i) => (
               <AccordionItem key={i} value={`faq-${i}`} className="border border-border rounded-lg px-4">
                 <AccordionTrigger className="text-left font-medium hover:no-underline">
