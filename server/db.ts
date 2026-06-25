@@ -314,7 +314,7 @@ export async function deleteOrderItems(orderId: number) {
 
 export async function getGroupBuyStats(groupBuyId: number) {
   const db = await getDb();
-  if (!db) return { totalCommitted: 0, totalPaid: 0, participantCount: 0, paidCount: 0, shippedCount: 0 };
+  if (!db) return { totalCommitted: 0, totalPaid: 0, participantCount: 0, paidCount: 0, shippedCount: 0, pendingPaymentCount: 0 };
 
   const allOrders = await db
     .select()
@@ -328,8 +328,9 @@ export async function getGroupBuyStats(groupBuyId: number) {
   const participantCount = allOrders.length;
   const paidCount = allOrders.filter((o) => o.status === "Paid" || o.status === "Shipped").length;
   const shippedCount = allOrders.filter((o) => o.status === "Shipped").length;
+  const pendingPaymentCount = allOrders.filter((o) => o.status === "Payment Pending").length;
 
-  return { totalCommitted, totalPaid, participantCount, paidCount, shippedCount };
+  return { totalCommitted, totalPaid, participantCount, paidCount, shippedCount, pendingPaymentCount };
 }
 
 // ─── Test Results ─────────────────────────────────────────────────────────────

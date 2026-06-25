@@ -3,7 +3,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { MoqProgress } from "@/components/MoqProgress";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, FlaskConical, Plus, Users } from "lucide-react";
+import { AlertCircle, BarChart3, CheckCircle, FlaskConical, Plus, Users } from "lucide-react";
 import { Link } from "wouter";
 
 export default function AdminDashboard() {
@@ -14,6 +14,10 @@ export default function AdminDashboard() {
   const activeBuys = summary?.filter((s) => !["Draft", "Complete"].includes(s.buy.status)).length ?? 0;
   const totalMembers = users?.length ?? 0;
   const totalCommitted = summary?.reduce((sum, s) => sum + s.stats.totalCommitted, 0) ?? 0;
+  const totalPendingPayments = summary?.reduce((sum, s) => sum + (s.stats.pendingPaymentCount ?? 0), 0) ?? 0;
+
+  // Buys with at least one pending payment, for the breakdown list
+  const buysWithPending = summary?.filter((s) => (s.stats.pendingPaymentCount ?? 0) > 0) ?? [];
 
   return (
     <AppLayout showAdmin>
@@ -48,6 +52,53 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {/* Pending Payments Widget */}
+        {isLoading ? (
+          <div className="glass-card p-5 h-24 animate-pulse bg-muted/20" />
+        ) : totalPendingPayments > 0 ? (
+          <div className="glass-card overflow-hidden border border-amber-500/30">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-amber-500/20 bg-amber-500/5">
+              <AlertCircle size={16} className="text-amber-500 shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-amber-400">
+                  {totalPendingPayments} Payment{totalPendingPayments !== 1 ? "s" : ""} Awaiting Confirmation
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Members have been sent payment instructions. Confirm receipt in the Orders tab.
+                </p>
+              </div>
+              <span className="inline-flex items-center justify-center min-w-[2rem] h-8 px-2 rounded-full bg-amber-500 text-white text-sm font-bold">
+                {totalPendingPayments}
+              </span>
+            </div>
+            <div className="divide-y divide-border">
+              {buysWithPending.map(({ buy, stats }) => (
+                <Link key={buy.id} href={`/admin/group-buys/${buy.id}`}>
+                  <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/20 transition-colors cursor-pointer">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{buy.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.pendingPaymentCount} pending &middot; {stats.paidCount} paid &middot; {stats.participantCount} total
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
+                        {stats.pendingPaymentCount}
+                      </span>
+                      <StatusBadge status={buy.status} type="buy" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="glass-card px-5 py-4 flex items-center gap-3 border border-emerald-500/20 bg-emerald-500/5">
+            <CheckCircle size={16} className="text-emerald-500 shrink-0" />
+            <p className="text-sm text-emerald-400 font-medium">All payments confirmed — no outstanding orders.</p>
+          </div>
+        )}
+
         {/* All Buys Table */}
         <div className="glass-card overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-border">
@@ -73,6 +124,11 @@ export default function AdminDashboard() {
                       <p className="text-sm font-medium truncate">{buy.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {stats.participantCount} participants &middot; ${stats.totalCommitted.toFixed(0)} committed &middot; {stats.paidCount} paid
+                        {(stats.pendingPaymentCount ?? 0) > 0 && (
+                          <span className="ml-1 text-amber-400 font-medium">
+                            &middot; {stats.pendingPaymentCount} pending payment{stats.pendingPaymentCount !== 1 ? "s" : ""}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="hidden sm:block w-40">
