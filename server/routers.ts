@@ -62,7 +62,9 @@ import {
   ghlOnCoaPublished,
   ghlOnOrderShipped,
   ghlOnOrderComplete,
+  ghlResyncMember,
 } from "./ghl/service";
+import { insertGhlSyncLog, getRecentGhlSyncLogs } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -955,6 +957,44 @@ export const appRouter = router({
         } catch (e) { console.error("[GHL] invite redeem GHL sync error:", e); }
 
         return { success: true };
+      }),
+  }),
+
+  // ─── GHL Admin ─────────────────────────────────────────────────────────────────
+
+  ghl: router({
+    getLogs: adminProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ input }) => {
+        return getRecentGhlSyncLogs(input.limit ?? 20);
+      }),
+    resyncMember: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        const user = await getUserById(input.userId);
+        if (!user || !user.email) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+        const stats = await getUserOrderStats(user.id);
+        const lastOrder = stats.lastOrder;
+        const result = await ghlResyncMember({
+          email: user.email,
+          name: user.name ?? null,
+          totalOrders: stats.totalOrders,
+          totalSpent: stats.totalSpent,
+          lastBuyName: lastOrder?.buyName ?? null,
+          lastOrderStatus: lastOrder?.status ?? null,
+          lastTrackingNumber: lastOrder?.trackingNumber ?? null,
+          lastCarrier: lastOrder?.carrier ?? null,
+          memberSince: user.createdAt.toISOString().split("T")[0],
+        });
+        await insertGhlSyncLog({
+          direction: "outbound",
+          eventType: "resync_member",
+          email: user.email,
+          userId: user.id,
+          payload: JSON.stringify({ userId: user.id, contactId: result.contactId }),
+          success: result.success,
+        });
+        return result;
       }),
   }),
 

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, ExternalLink, Send, XCircle, Zap } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, ExternalLink, RefreshCw, Send, XCircle, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +14,58 @@ const WEBHOOK_EVENTS = [
   { key: "test_results_posted", label: "Test Results Posted", desc: "Fires when a COA is published" },
   { key: "orders_shipped", label: "Orders Shipped", desc: "Fires when a buy transitions to Distributing status" },
 ] as const;
+
+function GhlSyncLogsPanel() {
+  const utils = trpc.useUtils();
+  const { data: ghlLogs, isLoading } = trpc.ghl.getLogs.useQuery({ limit: 20 });
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ArrowUpDown size={14} className="text-accent" />
+          <h2 className="font-semibold text-sm">GHL Sync Logs</h2>
+          <span className="text-xs text-muted-foreground">(last 20 events)</span>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 w-7 p-0"
+          onClick={() => utils.ghl.getLogs.invalidate()}
+        >
+          <RefreshCw size={12} />
+        </Button>
+      </div>
+      {isLoading ? (
+        <div className="p-6 text-center text-xs text-muted-foreground">Loading...</div>
+      ) : !ghlLogs || ghlLogs.length === 0 ? (
+        <div className="p-6 text-center text-xs text-muted-foreground">No GHL sync events yet.</div>
+      ) : (
+        <div className="divide-y divide-border max-h-72 overflow-y-auto">
+          {ghlLogs.map((log) => (
+            <div key={log.id} className="flex items-start gap-3 px-4 py-2.5">
+              {log.success ? (
+                <CheckCircle2 size={14} className="text-accent shrink-0 mt-0.5" />
+              ) : (
+                <XCircle size={14} className="text-destructive shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium">{log.eventType.replace(/_/g, " ")}</p>
+                  <span className={`text-xs px-1.5 py-0 rounded-full font-medium ${
+                    log.direction === "outbound" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"
+                  }`}>{log.direction}</span>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{log.email ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
@@ -201,6 +253,9 @@ export default function AdminSettings() {
             </div>
           </div>
         )}
+
+        {/* GHL Sync Logs */}
+        <GhlSyncLogsPanel />
       </div>
     </AppLayout>
   );

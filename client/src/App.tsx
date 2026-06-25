@@ -13,6 +13,7 @@ import MemberDashboard from "./pages/member/Dashboard";
 import BrowseBuys from "./pages/member/BrowseBuys";
 import BuyDetail from "./pages/member/BuyDetail";
 import MyOrders from "./pages/member/MyOrders";
+import BuyHistory from "./pages/member/BuyHistory";
 import Profile from "./pages/member/Profile";
 
 // Admin pages
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/buys">{() => <InviteGate><BrowseBuys /></InviteGate>}</Route>
       <Route path="/buys/:id">{() => <InviteGate><BuyDetail /></InviteGate>}</Route>
       <Route path="/my-orders">{() => <InviteGate><MyOrders /></InviteGate>}</Route>
+      <Route path="/buy-history">{() => <InviteGate><BuyHistory /></InviteGate>}</Route>
       <Route path="/profile">{() => <InviteGate><Profile /></InviteGate>}</Route>
 
       {/* Admin */}

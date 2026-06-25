@@ -434,3 +434,70 @@ export async function ghlOnOrderComplete(params: {
     });
   }
 }
+
+/**
+ * Re-sync a member's full contact, tags, and opportunity to GHL.
+ * Called from the admin Members page "Resync to GHL" button.
+ */
+export async function ghlResyncMember(member: {
+  email: string;
+  name: string | null;
+  totalOrders: number;
+  totalSpent: number;
+  lastBuyName?: string | null;
+  lastOrderStatus?: string | null;
+  lastTrackingNumber?: string | null;
+  lastCarrier?: string | null;
+  memberSince?: string;
+}): Promise<{ success: boolean; contactId?: string }> {
+  try {
+    const [firstName, ...rest] = (member.name ?? "").split(" ");
+    const lastName = rest.join(" ") || undefined;
+
+    const customFields: CustomFieldValue[] = [
+      { key: GHL_FIELDS.TOTAL_ORDERS, field_value: member.totalOrders },
+      { key: GHL_FIELDS.TOTAL_SPENT, field_value: member.totalSpent },
+    ];
+    if (member.memberSince) customFields.push({ key: GHL_FIELDS.MEMBER_SINCE, field_value: member.memberSince });
+    if (member.lastBuyName) customFields.push({ key: GHL_FIELDS.LAST_BUY_NAME, field_value: member.lastBuyName });
+    if (member.lastOrderStatus) customFields.push({ key: GHL_FIELDS.LAST_ORDER_STATUS, field_value: member.lastOrderStatus });
+    if (member.lastTrackingNumber) customFields.push({ key: GHL_FIELDS.LAST_TRACKING, field_value: member.lastTrackingNumber });
+    if (member.lastCarrier) customFields.push({ key: GHL_FIELDS.LAST_CARRIER, field_value: member.lastCarrier });
+
+    const tags: string[] = [GHL_TAGS.MEMBER];
+    if (member.totalOrders > 0) tags.push(GHL_TAGS.ORDERED);
+    if (member.lastOrderStatus === "Paid" || member.lastOrderStatus === "Shipped" || member.lastOrderStatus === "Complete") tags.push(GHL_TAGS.PAID);
+    if (member.lastOrderStatus === "Shipped" || member.lastOrderStatus === "Complete") tags.push(GHL_TAGS.SHIPPED);
+    if (member.lastOrderStatus === "Complete") tags.push(GHL_TAGS.COMPLETE);
+
+    const contact = await ghlUpsertContact({
+      email: member.email,
+      firstName: firstName || undefined,
+      lastName,
+      tags,
+      customFields,
+    });
+
+    if (contact?.id) {
+      const stageId = member.lastOrderStatus === "Complete" ? GHL_STAGES.COMPLETED
+        : member.lastOrderStatus === "Shipped" ? GHL_STAGES.SHIPPED
+        : member.lastOrderStatus === "Paid" ? GHL_STAGES.PAYMENT_RECEIVED
+        : member.totalOrders > 0 ? GHL_STAGES.ORDER_COMMITTED
+        : GHL_STAGES.MEMBER_REGISTERED;
+
+      await ghlUpsertOpportunity({
+        contactId: contact.id,
+        contactName: member.name ?? member.email,
+        stageId,
+        title: `PBG — ${member.name ?? member.email}`,
+        monetaryValue: member.totalSpent,
+        status: member.lastOrderStatus === "Complete" ? "won" : "open",
+      });
+      return { success: true, contactId: contact.id };
+    }
+    return { success: false };
+  } catch (e) {
+    console.error("[GHL] resyncMember error:", e);
+    return { success: false };
+  }
+}

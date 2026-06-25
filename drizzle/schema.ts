@@ -241,3 +241,18 @@ export const inviteCodeUses = mysqlTable("invite_code_uses", {
 });
 
 export type InviteCodeUse = typeof inviteCodeUses.$inferSelect;
+
+// ─── GHL Sync Logs ───────────────────────────────────────────────────────────
+export const ghlSyncLogs = mysqlTable("ghl_sync_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  direction: mysqlEnum("direction", ["outbound", "inbound"]).notNull(),
+  eventType: varchar("eventType", { length: 128 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  userId: int("userId"),
+  payload: text("payload"),
+  success: boolean("success").default(true).notNull(),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GhlSyncLog = typeof ghlSyncLogs.$inferSelect;
+export type InsertGhlSyncLog = typeof ghlSyncLogs.$inferInsert;

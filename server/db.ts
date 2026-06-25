@@ -17,6 +17,9 @@ import {
   orders,
   participationTiers,
   products,
+  GhlSyncLog,
+  InsertGhlSyncLog,
+  ghlSyncLogs,
   skoolWebhookConfig,
   skoolWebhookLog,
   testResults,
@@ -473,13 +476,31 @@ export async function getInviteCodeUses(inviteCodeId: number) {
 
 // ─── User Order Stats (for GHL sync) ────────────────────────────────────────
 
-export async function getUserOrderStats(userId: number): Promise<{ totalOrders: number; totalSpent: number }> {
+export async function getUserOrderStats(userId: number): Promise<{
+  totalOrders: number;
+  totalSpent: number;
+  lastOrder: { buyName: string | null; status: string | null; trackingNumber: string | null; carrier: string | null } | null;
+}> {
   const db = await getDb();
-  if (!db) return { totalOrders: 0, totalSpent: 0 };
-  const rows = await db.select().from(orders).where(eq(orders.userId, userId));
+  if (!db) return { totalOrders: 0, totalSpent: 0, lastOrder: null };
+  const rows = await db
+    .select({ order: orders, buy: groupBuys })
+    .from(orders)
+    .leftJoin(groupBuys, eq(orders.groupBuyId, groupBuys.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(orders.createdAt);
   const totalOrders = rows.length;
-  const totalSpent = rows.reduce((sum, o) => sum + parseFloat(String(o.totalAmount ?? 0)), 0);
-  return { totalOrders, totalSpent };
+  const totalSpent = rows.reduce((sum, r) => sum + parseFloat(String(r.order.totalAmount ?? 0)), 0);
+  const last = rows[rows.length - 1];
+  const lastOrder = last
+    ? {
+        buyName: last.buy?.title ?? null,
+        status: last.order.status ?? null,
+        trackingNumber: last.order.trackingNumber ?? null,
+        carrier: last.order.trackingCarrier ?? null,
+      }
+    : null;
+  return { totalOrders, totalSpent, lastOrder };
 }
 
 export async function getOrderWithUser(orderId: number) {
@@ -516,4 +537,26 @@ export async function getAdminReportData(groupBuyId: number) {
   const stats = await getGroupBuyStats(groupBuyId);
 
   return { buy, orders: allOrders, stats };
+}
+
+// ─── GHL Sync Logs ────────────────────────────────────────────────────────────
+
+export async function insertGhlSyncLog(data: InsertGhlSyncLog): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(ghlSyncLogs).values(data);
+  } catch (e) {
+    console.error("[DB] Failed to insert GHL sync log:", e);
+  }
+}
+
+export async function getRecentGhlSyncLogs(limit = 20): Promise<GhlSyncLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(ghlSyncLogs)
+    .orderBy(desc(ghlSyncLogs.createdAt))
+    .limit(limit);
 }

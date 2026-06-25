@@ -106,3 +106,8 @@
 - [x] Wire GHL on COA published (update pbg_coa_available field, stage: Ready to Ship — COA means product is verified and ready to distribute)
 - [x] Inbound GHL webhook handler: ContactUpdated syncs name back to platform; other events (tag changes, opportunity stage changes) are logged for V1 visibility
 - [x] GHL status panel in admin Settings page
+
+## Round 5 Features
+- [x] GHL sync log panel in admin Settings: DB table, server procedure, last-10-events UI panel
+- [x] Resync to GHL button in admin Members page: re-push contact, tags, and opportunity to GHL
+- [x] Member-facing buy history page: past completed buys, order summary, COA links, tracking

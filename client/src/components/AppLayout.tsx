@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import {
   BarChart3,
   ChevronDown,
+  ClipboardList,
   FlaskConical,
   KeyRound,
   LayoutDashboard,
@@ -37,6 +38,7 @@ const memberNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={16} /> },
   { label: "Browse Buys", href: "/buys", icon: <ShoppingBag size={16} /> },
   { label: "My Orders", href: "/my-orders", icon: <Package size={16} /> },
+  { label: "Buy History", href: "/buy-history", icon: <ClipboardList size={16} /> },
 ];
 
 const adminNav: NavItem[] = [
