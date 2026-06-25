@@ -111,3 +111,16 @@
 - [x] GHL sync log panel in admin Settings: DB table, server procedure, last-10-events UI panel
 - [x] Resync to GHL button in admin Members page: re-push contact, tags, and opportunity to GHL
 - [x] Member-facing buy history page: past completed buys, order summary, COA links, tracking
+
+## Round 6 Features
+- [x] Schema: add memberNote and adminNote columns to orders table
+- [x] GHL: add pbg-payment-pending tag when order status moves to Payment Pending
+- [x] GHL: confirm pbg-shipped tag fires on Shipped (already wired, verify)
+- [x] GHL: sync member note and admin note to GHL contact Notes field (prepend "Member Note:" / "Admin Note:")
+- [x] Server: updateOrderNote procedure (member can set their own note, editable while not yet Paid)
+- [x] Server: updateAdminNote procedure (admin-only, any time)
+- [x] Server: bulkResyncAllMembers procedure (admin-only, fans out resync to all users)
+- [x] Frontend: member note input on order placement form
+- [x] Frontend: member note display/edit on My Orders page (editable while Committed/Payment Pending)
+- [x] Frontend: admin note field in admin Orders tab per order row
+- [x] Frontend: bulk resync all members button in admin Settings page

@@ -1,14 +1,29 @@
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ChevronDown, ChevronRight, ExternalLink, Package } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, MessageSquare, Package, Save } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Link } from "wouter";
 
 function OrderCard({ order }: { order: any }) {
   const [expanded, setExpanded] = useState(false);
+  const [note, setNote] = useState<string>(order.memberNote ?? "");
+  const [editingNote, setEditingNote] = useState(false);
   const total = parseFloat(order.totalAmount as string);
+  const canEditNote = order.status === "Committed" || order.status === "Payment Pending";
+  const utils = trpc.useUtils();
+
+  const saveNote = trpc.orderNotes.updateMemberNote.useMutation({
+    onSuccess: () => {
+      toast.success("Note saved");
+      setEditingNote(false);
+      utils.orders.myOrders.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
     <div className="glass-card overflow-hidden">
@@ -29,6 +44,9 @@ function OrderCard({ order }: { order: any }) {
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {order.memberNote && (
+            <MessageSquare size={13} className="text-primary/60" aria-label="Has note" />
+          )}
           <StatusBadge status={order.status} type="order" />
           {expanded ? <ChevronDown size={15} className="text-muted-foreground" /> : <ChevronRight size={15} className="text-muted-foreground" />}
         </div>
@@ -106,6 +124,64 @@ function OrderCard({ order }: { order: any }) {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Member Note */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Your Note
+              </p>
+              {canEditNote && !editingNote && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={() => setEditingNote(true)}
+                >
+                  {note ? "Edit" : "Add note"}
+                </Button>
+              )}
+            </div>
+            {editingNote ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a note for the admin (e.g., special shipping instructions)..."
+                  className="text-sm resize-none"
+                  rows={3}
+                  maxLength={1000}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => saveNote.mutate({ orderId: order.id, note })}
+                    disabled={saveNote.isPending}
+                  >
+                    <Save size={12} className="mr-1" />
+                    {saveNote.isPending ? "Saving…" : "Save"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { setNote(order.memberNote ?? ""); setEditingNote(false); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : note ? (
+              <p className="text-sm text-muted-foreground bg-muted/20 rounded-lg p-3 border border-border/50">
+                {note}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground/50 italic">
+                {canEditNote ? "No note added yet." : "No note."}
+              </p>
+            )}
           </div>
 
           <Button asChild variant="outline" size="sm">

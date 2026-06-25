@@ -125,6 +125,7 @@ export const orders = mysqlTable("orders", {
   shippingState: varchar("shippingState", { length: 64 }),
   shippingZip: varchar("shippingZip", { length: 20 }),
   shippingCountry: varchar("shippingCountry", { length: 64 }),
+  memberNote: text("memberNote"),
   adminNotes: text("adminNotes"),
   shippedAt: timestamp("shippedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

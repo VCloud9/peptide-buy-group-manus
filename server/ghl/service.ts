@@ -205,6 +205,23 @@ export async function ghlUpsertOpportunity(params: {
   }
 }
 
+// ─── Add Note to Contact ─────────────────────────────────────────────────────
+export async function ghlAddContactNote(contactId: string, body: string): Promise<void> {
+  try {
+    const res = await fetch(`${GHL_API_BASE}/contacts/${contactId}/notes`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ body, userId: "" }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`[GHL] addContactNote failed (${res.status}): ${err}`);
+    }
+  } catch (e) {
+    console.error("[GHL] addContactNote error:", e);
+  }
+}
+
 // ─── High-Level Event Handlers ────────────────────────────────────────────────
 
 /**
@@ -285,6 +302,34 @@ export async function ghlOnOrderPlaced(params: {
       contactId: contact.id,
       contactName: params.name ?? params.email,
       stageId: GHL_STAGES.ORDER_COMMITTED,
+      title: `PBG — ${params.name ?? params.email}`,
+      monetaryValue: params.orderTotal,
+    });
+  }
+}
+
+/**
+ * Called when an admin marks an order as Payment Pending.
+ */
+export async function ghlOnPaymentPending(params: {
+  email: string;
+  name: string | null;
+  orderTotal: number;
+  buyName: string;
+}): Promise<void> {
+  const contact = await ghlUpsertContact({
+    email: params.email,
+    tags: [GHL_TAGS.PAYMENT_PENDING],
+    customFields: [
+      { key: GHL_FIELDS.LAST_ORDER_STATUS, field_value: "Payment Pending" },
+    ],
+  });
+
+  if (contact?.id) {
+    await ghlUpsertOpportunity({
+      contactId: contact.id,
+      contactName: params.name ?? params.email,
+      stageId: GHL_STAGES.PAYMENT_PENDING,
       title: `PBG — ${params.name ?? params.email}`,
       monetaryValue: params.orderTotal,
     });

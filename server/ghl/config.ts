@@ -38,10 +38,11 @@ export const GHL_FIELDS = {
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 export const GHL_TAGS = {
-  MEMBER:    "pbg-member",
-  VERIFIED:  "pbg-verified",
-  ORDERED:   "pbg-ordered",
-  PAID:      "pbg-paid",
-  SHIPPED:   "pbg-shipped",
-  COMPLETE:  "pbg-complete",
+  MEMBER:           "pbg-member",
+  VERIFIED:         "pbg-verified",
+  ORDERED:          "pbg-ordered",
+  PAYMENT_PENDING:  "pbg-payment-pending",
+  PAID:             "pbg-paid",
+  SHIPPED:          "pbg-shipped",
+  COMPLETE:         "pbg-complete",
 } as const;

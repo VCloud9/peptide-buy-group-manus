@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, Download, FileDown, FlaskConical, Package, Pencil, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { ChevronLeft, Download, FileDown, FlaskConical, MessageSquare, Package, Pencil, Plus, Save, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -22,6 +22,94 @@ import type { BuyStatus, OrderStatus, TestStatus } from "../../../../shared/type
 const BUY_STATUSES: BuyStatus[] = ["Draft", "Gathering", "Funded", "Ordered", "Testing", "Distributing", "Complete"];
 const ORDER_STATUSES: OrderStatus[] = ["Committed", "Payment Pending", "Paid", "Shipped"];
 const TEST_STATUSES: TestStatus[] = ["Pending", "Samples Sent", "In Testing", "Results Ready", "Published", "Failed"];
+
+// ─── OrderRow ─────────────────────────────────────────────────────────────────
+function OrderRow({
+  order,
+  onStatusChange,
+  onTrackClick,
+  onSaveAdminNote,
+}: {
+  order: any;
+  onStatusChange: (v: string) => void;
+  onTrackClick: () => void;
+  onSaveAdminNote: (note: string) => void;
+}) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [adminNote, setAdminNote] = useState<string>(order.adminNotes ?? "");
+
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{order.user?.name ?? order.user?.email ?? `User #${order.userId}`}</p>
+          <p className="text-xs text-muted-foreground">
+            ${parseFloat(order.totalAmount as string).toFixed(2)} &middot; {order.items?.length ?? 0} item(s)
+            {order.trackingNumber && ` · Track: ${order.trackingNumber}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Select value={order.status} onValueChange={onStatusChange}>
+            <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onTrackClick}>
+            <Package size={11} /> Track
+          </Button>
+          <Button
+            variant="ghost" size="sm"
+            className={`h-7 text-xs gap-1 ${adminNote ? "text-primary" : "text-muted-foreground"}`}
+            onClick={() => setNoteOpen((o) => !o)}
+          >
+            <MessageSquare size={11} />
+          </Button>
+        </div>
+      </div>
+      {/* Items preview */}
+      <div className="flex flex-wrap gap-1">
+        {order.items?.map((item: any) => (
+          <span key={item.id} className="text-xs bg-muted/40 px-2 py-0.5 rounded-full text-muted-foreground">
+            {item.product?.name ?? `#${item.productId}`} ×{item.quantity}
+          </span>
+        ))}
+      </div>
+      {/* Member note (read-only for admin) */}
+      {order.memberNote && (
+        <div className="text-xs text-muted-foreground bg-muted/20 rounded-lg px-3 py-2 border border-border/40">
+          <span className="font-medium text-foreground/60 mr-1">Member note:</span>{order.memberNote}
+        </div>
+      )}
+      {/* Admin note */}
+      {noteOpen && (
+        <div className="space-y-2 pt-1">
+          <Textarea
+            value={adminNote}
+            onChange={(e) => setAdminNote(e.target.value)}
+            placeholder="Internal admin note (not visible to member)..."
+            className="text-xs resize-none"
+            rows={2}
+            maxLength={2000}
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm" className="h-6 text-xs gap-1"
+              onClick={() => { onSaveAdminNote(adminNote); setNoteOpen(false); }}
+            >
+              <Save size={10} /> Save
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs"
+              onClick={() => { setAdminNote(order.adminNotes ?? ""); setNoteOpen(false); }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminBuyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +146,10 @@ export default function AdminBuyDetail() {
   });
   const updateOrderStatus = trpc.orders.updateStatus.useMutation({
     onSuccess: () => { toast.success("Order updated."); refetchOrders(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateAdminNote = trpc.orderNotes.updateAdminNote.useMutation({
+    onSuccess: () => { toast.success("Admin note saved."); refetchOrders(); },
     onError: (e) => toast.error(e.message),
   });
   const updateTracking = trpc.orders.updateTracking.useMutation({
@@ -374,51 +466,18 @@ export default function AdminBuyDetail() {
               <div className="glass-card overflow-hidden">
                 <div className="divide-y divide-border">
                   {orders.map((order: any) => (
-                    <div key={order.id} className="px-4 py-3 space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{order.user?.name ?? order.user?.email ?? `User #${order.userId}`}</p>
-                          <p className="text-xs text-muted-foreground">
-                            ${parseFloat(order.totalAmount as string).toFixed(2)} &middot; {order.items?.length ?? 0} item(s)
-                            {order.trackingNumber && ` · Track: ${order.trackingNumber}`}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Select
-                            value={order.status}
-                            onValueChange={(v) => updateOrderStatus.mutate({ id: order.id, status: v as OrderStatus })}
-                          >
-                            <SelectTrigger className="h-7 text-xs w-36">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ORDER_STATUSES.map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline" size="sm" className="h-7 text-xs gap-1"
-                            onClick={() => {
-                              setTrackingOrderId(order.id);
-                              setTrackingNum(order.trackingNumber ?? "");
-                              setTrackingCarrier(order.trackingCarrier ?? "");
-                              setTrackingDialog(true);
-                            }}
-                          >
-                            <Package size={11} /> Track
-                          </Button>
-                        </div>
-                      </div>
-                      {/* Items preview */}
-                      <div className="flex flex-wrap gap-1">
-                        {order.items?.map((item: any) => (
-                          <span key={item.id} className="text-xs bg-muted/40 px-2 py-0.5 rounded-full text-muted-foreground">
-                            {item.product?.name ?? `#${item.productId}`} ×{item.quantity}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <OrderRow
+                      key={order.id}
+                      order={order}
+                      onStatusChange={(v) => updateOrderStatus.mutate({ id: order.id, status: v as OrderStatus })}
+                      onTrackClick={() => {
+                        setTrackingOrderId(order.id);
+                        setTrackingNum(order.trackingNumber ?? "");
+                        setTrackingCarrier(order.trackingCarrier ?? "");
+                        setTrackingDialog(true);
+                      }}
+                      onSaveAdminNote={(note) => updateAdminNote.mutate({ orderId: order.id, note })}
+                    />
                   ))}
                 </div>
               </div>

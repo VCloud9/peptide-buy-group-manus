@@ -80,6 +80,13 @@ export default function AdminSettings() {
     onSuccess: () => { toast.success("Test webhook fired."); utils.skool.getLogs.invalidate(); },
     onError: (e) => toast.error(e.message),
   });
+  const bulkResync = trpc.ghl.bulkResyncAllMembers.useMutation({
+    onSuccess: (r) => {
+      toast.success(`Bulk resync complete: ${r.succeeded}/${r.total} succeeded${r.failed > 0 ? `, ${r.failed} failed` : "."}`);
+      utils.ghl.getLogs.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [groupSlug, setGroupSlug] = useState("");
@@ -253,6 +260,26 @@ export default function AdminSettings() {
             </div>
           </div>
         )}
+
+        {/* GHL Bulk Resync */}
+        <div className="glass-card p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-sm">Resync All Members to GHL</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Re-pushes every member's contact, tags, and opportunity to GHL in one batch. Use after pipeline changes or field updates.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={() => bulkResync.mutate()}
+            disabled={bulkResync.isPending}
+          >
+            <RefreshCw size={13} className={bulkResync.isPending ? "animate-spin" : ""} />
+            {bulkResync.isPending ? "Syncing…" : "Resync All"}
+          </Button>
+        </div>
 
         {/* GHL Sync Logs */}
         <GhlSyncLogsPanel />

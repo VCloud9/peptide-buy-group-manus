@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ export default function BuyDetail() {
 
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
+  const [memberNote, setMemberNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const createOrder = trpc.orders.create.useMutation({
@@ -89,6 +91,7 @@ export default function BuyDetail() {
         groupBuyId: buyId,
         tierId: selectedTier ?? undefined,
         items,
+        memberNote: memberNote.trim() || undefined,
         shippingName: meProfile?.shippingName ?? undefined,
         shippingAddress1: meProfile?.shippingAddress1 ?? undefined,
         shippingAddress2: meProfile?.shippingAddress2 ?? undefined,
@@ -322,6 +325,19 @@ export default function BuyDetail() {
                     <Link href="/profile" className="underline">Add one in your profile</Link>.
                   </p>
                 )}
+
+                {/* Member note */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Note for admin (optional)</label>
+                  <Textarea
+                    value={memberNote}
+                    onChange={(e) => setMemberNote(e.target.value)}
+                    placeholder="Special instructions, questions, or requests..."
+                    className="text-xs resize-none"
+                    rows={2}
+                    maxLength={1000}
+                  />
+                </div>
 
                 <Button
                   className="w-full"

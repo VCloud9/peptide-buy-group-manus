@@ -56,6 +56,7 @@ import {
   ghlOnMemberSignup,
   ghlOnInviteRedeemed,
   ghlOnOrderPlaced,
+  ghlOnPaymentPending,
   ghlOnPaymentReceived,
   ghlOnOrderPlacedWithSupplier,
   ghlOnTestingStarted,
@@ -63,6 +64,7 @@ import {
   ghlOnOrderShipped,
   ghlOnOrderComplete,
   ghlResyncMember,
+  ghlAddContactNote,
 } from "./ghl/service";
 import { insertGhlSyncLog, getRecentGhlSyncLogs } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -549,6 +551,7 @@ export const appRouter = router({
               quantity: z.number().min(1),
             })
           ),
+          memberNote: z.string().max(1000).optional(),
           shippingName: z.string().optional(),
           shippingAddress1: z.string().optional(),
           shippingAddress2: z.string().optional(),
@@ -585,6 +588,7 @@ export const appRouter = router({
           tierId: input.tierId,
           totalAmount: totalAmount.toFixed(2),
           status: "Committed",
+          memberNote: input.memberNote ?? null,
           shippingName: input.shippingName,
           shippingAddress1: input.shippingAddress1,
           shippingAddress2: input.shippingAddress2,
@@ -639,13 +643,22 @@ export const appRouter = router({
         if (input.status === "Shipped") updates.shippedAt = new Date();
         await updateOrder(input.id, updates as any);
 
-        // GHL: sync on Paid or Shipped
+        // GHL: sync on status change
         try {
           const row = await getOrderWithUser(input.id);
           const user = row?.user;
           const order = row?.order;
           if (user?.email) {
-            if (input.status === "Paid") {
+            if (input.status === "Payment Pending") {
+              // Fetch buy name for the opportunity title
+              const buyName = (order as any)?.groupBuy?.title ?? "Group Buy";
+              ghlOnPaymentPending({
+                email: user.email,
+                name: user.name,
+                orderTotal: parseFloat(String(order?.totalAmount ?? 0)),
+                buyName,
+              }).catch((e) => console.error("[GHL] onPaymentPending error:", e));
+            } else if (input.status === "Paid") {
               const stats = await getUserOrderStats(user.id);
               ghlOnPaymentReceived({
                 email: user.email,
@@ -968,6 +981,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return getRecentGhlSyncLogs(input.limit ?? 20);
       }),
+
     resyncMember: adminProcedure
       .input(z.object({ userId: z.number() }))
       .mutation(async ({ input }) => {
@@ -995,6 +1009,95 @@ export const appRouter = router({
           success: result.success,
         });
         return result;
+      }),
+
+    bulkResyncAllMembers: adminProcedure.mutation(async () => {
+      const allUsers = await getAllUsers();
+      const usersWithEmail = allUsers.filter((u) => !!u.email);
+      let succeeded = 0;
+      let failed = 0;
+      await Promise.all(
+        usersWithEmail.map(async (user) => {
+          try {
+            const stats = await getUserOrderStats(user.id);
+            const lastOrder = stats.lastOrder;
+            const result = await ghlResyncMember({
+              email: user.email!,
+              name: user.name ?? null,
+              totalOrders: stats.totalOrders,
+              totalSpent: stats.totalSpent,
+              lastBuyName: lastOrder?.buyName ?? null,
+              lastOrderStatus: lastOrder?.status ?? null,
+              lastTrackingNumber: lastOrder?.trackingNumber ?? null,
+              lastCarrier: lastOrder?.carrier ?? null,
+              memberSince: user.createdAt.toISOString().split("T")[0],
+            });
+            await insertGhlSyncLog({
+              direction: "outbound",
+              eventType: "bulk_resync",
+              email: user.email!,
+              userId: user.id,
+              payload: JSON.stringify({ userId: user.id, contactId: result.contactId }),
+              success: result.success,
+            });
+            if (result.success) succeeded++; else failed++;
+          } catch (e) {
+            failed++;
+            console.error(`[GHL] bulkResync error for user ${user.id}:`, e);
+          }
+        })
+      );
+      return { success: true, total: usersWithEmail.length, succeeded, failed };
+    }),
+  }),
+
+  // ─── Order Notes ──────────────────────────────────────────────────────────────────────────────────
+
+  orderNotes: router({
+    /** Member saves their own note on their order. Editable while status is Committed or Payment Pending. */
+    updateMemberNote: protectedProcedure
+      .input(z.object({ orderId: z.number(), note: z.string().max(1000) }))
+      .mutation(async ({ input, ctx }) => {
+        const order = await getOrderById(input.orderId);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+        if (order.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Not your order" });
+        if (order.status !== "Committed" && order.status !== "Payment Pending") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Notes can only be edited before payment is confirmed" });
+        }
+        await updateOrder(input.orderId, { memberNote: input.note } as any);
+        // Sync to GHL non-blocking
+        try {
+          const row = await getOrderWithUser(input.orderId);
+          if (row?.user?.email && input.note.trim()) {
+            const { ghlUpsertContact } = await import("./ghl/service");
+            const contact = await ghlUpsertContact({ email: row.user.email });
+            if (contact?.id) {
+              await ghlAddContactNote(contact.id, `Member Note: ${input.note.trim()}`);
+            }
+          }
+        } catch (e) { console.error("[GHL] updateMemberNote GHL sync error:", e); }
+        return { success: true };
+      }),
+
+    /** Admin saves a note on any order. Never visible to members. */
+    updateAdminNote: adminProcedure
+      .input(z.object({ orderId: z.number(), note: z.string().max(2000) }))
+      .mutation(async ({ input }) => {
+        const order = await getOrderById(input.orderId);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+        await updateOrder(input.orderId, { adminNotes: input.note } as any);
+        // Sync to GHL non-blocking
+        try {
+          const row = await getOrderWithUser(input.orderId);
+          if (row?.user?.email && input.note.trim()) {
+            const { ghlUpsertContact } = await import("./ghl/service");
+            const contact = await ghlUpsertContact({ email: row.user.email });
+            if (contact?.id) {
+              await ghlAddContactNote(contact.id, `Admin Note: ${input.note.trim()}`);
+            }
+          }
+        } catch (e) { console.error("[GHL] updateAdminNote GHL sync error:", e); }
+        return { success: true };
       }),
   }),
 
