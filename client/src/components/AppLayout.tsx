@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FlaskConical,
   KeyRound,
+  ExternalLink,
   LayoutDashboard,
   LogOut,
   Package,
@@ -117,6 +118,18 @@ export function AppLayout({ children, showAdmin = false }: Props) {
                 </span>
               </Link>
             ))}
+            {/* Skool community link — member view only */}
+            {!showAdmin && (
+              <a
+                href="https://www.skool.com/peptide-buyer-group"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              >
+                <ExternalLink size={14} />
+                Community
+              </a>
+            )}
             {/* Switch between member/admin */}
             {isAdmin && (
               <Link href={showAdmin ? "/dashboard" : "/admin"}>
