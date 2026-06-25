@@ -49,7 +49,20 @@ import {
   redeemInviteCode,
   getUserInviteStatus,
   getInviteCodeUses,
+  getUserOrderStats,
+  getOrderWithUser,
 } from "./db";
+import {
+  ghlOnMemberSignup,
+  ghlOnInviteRedeemed,
+  ghlOnOrderPlaced,
+  ghlOnPaymentReceived,
+  ghlOnOrderPlacedWithSupplier,
+  ghlOnTestingStarted,
+  ghlOnCoaPublished,
+  ghlOnOrderShipped,
+  ghlOnOrderComplete,
+} from "./ghl/service";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -245,6 +258,36 @@ export const appRouter = router({
         } else if (input.status === "Distributing") {
           await fireSkoolWebhook("orders_shipped", input.id, { title: buy.title });
         }
+
+        // GHL: buy lifecycle — fan out to all members of this buy
+        try {
+          const buyOrders = await getOrdersByGroupBuy(input.id);
+          if (input.status === "Ordered") {
+            for (const o of buyOrders) {
+              const row = await getOrderWithUser(o.id);
+              if (row?.user?.email) {
+                ghlOnOrderPlacedWithSupplier({ email: row.user.email, name: row.user.name })
+                  .catch((e) => console.error("[GHL] onOrderPlacedWithSupplier error:", e));
+              }
+            }
+          } else if (input.status === "Testing") {
+            for (const o of buyOrders) {
+              const row = await getOrderWithUser(o.id);
+              if (row?.user?.email) {
+                ghlOnTestingStarted({ email: row.user.email, name: row.user.name })
+                  .catch((e) => console.error("[GHL] onTestingStarted error:", e));
+              }
+            }
+          } else if (input.status === "Complete") {
+            for (const o of buyOrders) {
+              const row = await getOrderWithUser(o.id);
+              if (row?.user?.email) {
+                ghlOnOrderComplete({ email: row.user.email, name: row.user.name })
+                  .catch((e) => console.error("[GHL] onOrderComplete error:", e));
+              }
+            }
+          }
+        } catch (e) { console.error("[GHL] buy lifecycle GHL sync error:", e); }
 
         return { success: true };
       }),
@@ -559,6 +602,24 @@ export const appRouter = router({
           });
         }
 
+        // GHL: fire order placed event (non-blocking)
+        try {
+          const user = await getUserById(ctx.user.id);
+          const buy = await getGroupBuyById(input.groupBuyId);
+          if (user?.email && buy) {
+            const stats = await getUserOrderStats(ctx.user.id);
+            ghlOnOrderPlaced({
+              email: user.email,
+              name: user.name,
+              buyName: buy.title,
+              orderTotal: totalAmount,
+              orderId,
+              totalOrders: stats.totalOrders,
+              totalSpent: stats.totalSpent,
+            }).catch((e) => console.error("[GHL] onOrderPlaced error:", e));
+          }
+        } catch (e) { console.error("[GHL] onOrderPlaced lookup error:", e); }
+
         return { success: true, orderId };
       }),
 
@@ -575,6 +636,32 @@ export const appRouter = router({
         if (input.adminNotes !== undefined) updates.adminNotes = input.adminNotes;
         if (input.status === "Shipped") updates.shippedAt = new Date();
         await updateOrder(input.id, updates as any);
+
+        // GHL: sync on Paid or Shipped
+        try {
+          const row = await getOrderWithUser(input.id);
+          const user = row?.user;
+          const order = row?.order;
+          if (user?.email) {
+            if (input.status === "Paid") {
+              const stats = await getUserOrderStats(user.id);
+              ghlOnPaymentReceived({
+                email: user.email,
+                name: user.name,
+                orderTotal: parseFloat(String(order?.totalAmount ?? 0)),
+                totalSpent: stats.totalSpent,
+              }).catch((e) => console.error("[GHL] onPaymentReceived error:", e));
+            } else if (input.status === "Shipped") {
+              ghlOnOrderShipped({
+                email: user.email,
+                name: user.name,
+                trackingNumber: order?.trackingNumber ?? null,
+                carrier: order?.trackingCarrier ?? null,
+              }).catch((e) => console.error("[GHL] onOrderShipped error:", e));
+            }
+          }
+        } catch (e) { console.error("[GHL] updateStatus GHL sync error:", e); }
+
         return { success: true };
       }),
 
@@ -589,6 +676,20 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateOrder(id, { ...data, status: "Shipped", shippedAt: new Date() });
+
+        // GHL: tracking updated → shipped
+        try {
+          const row = await getOrderWithUser(id);
+          if (row?.user?.email) {
+            ghlOnOrderShipped({
+              email: row.user.email,
+              name: row.user.name,
+              trackingNumber: input.trackingNumber,
+              carrier: input.trackingCarrier ?? null,
+            }).catch((e) => console.error("[GHL] onOrderShipped (tracking) error:", e));
+          }
+        } catch (e) { console.error("[GHL] updateTracking GHL sync error:", e); }
+
         return { success: true };
       }),
 
@@ -707,6 +808,17 @@ export const appRouter = router({
               labName: result.labName,
               purityResult: result.purityResult,
             });
+            // GHL: COA published — update all members of this buy
+            try {
+              const buyOrders = await getOrdersByGroupBuy(result.groupBuyId);
+              for (const o of buyOrders) {
+                const row = await getOrderWithUser(o.id);
+                if (row?.user?.email) {
+                  ghlOnCoaPublished({ email: row.user.email, name: row.user.name })
+                    .catch((e) => console.error("[GHL] onCoaPublished error:", e));
+                }
+              }
+            } catch (e) { console.error("[GHL] COA published GHL sync error:", e); }
           }
         }
 
@@ -828,6 +940,19 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const result = await redeemInviteCode(input.code.trim().toUpperCase(), ctx.user.id);
         if (!result.success) throw new TRPCError({ code: "BAD_REQUEST", message: result.error });
+
+        // GHL: invite redeemed
+        try {
+          const user = await getUserById(ctx.user.id);
+          if (user?.email) {
+            ghlOnInviteRedeemed({
+              email: user.email,
+              name: user.name,
+              inviteCode: input.code.trim().toUpperCase(),
+            }).catch((e) => console.error("[GHL] onInviteRedeemed error:", e));
+          }
+        } catch (e) { console.error("[GHL] invite redeem GHL sync error:", e); }
+
         return { success: true };
       }),
   }),

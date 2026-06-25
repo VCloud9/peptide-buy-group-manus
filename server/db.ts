@@ -70,6 +70,13 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
@@ -462,6 +469,29 @@ export async function getInviteCodeUses(inviteCodeId: number) {
     .where(eq(inviteCodeUses.inviteCodeId, inviteCodeId))
     .leftJoin(users, eq(inviteCodeUses.userId, users.id))
     .orderBy(desc(inviteCodeUses.usedAt));
+}
+
+// ─── User Order Stats (for GHL sync) ────────────────────────────────────────
+
+export async function getUserOrderStats(userId: number): Promise<{ totalOrders: number; totalSpent: number }> {
+  const db = await getDb();
+  if (!db) return { totalOrders: 0, totalSpent: 0 };
+  const rows = await db.select().from(orders).where(eq(orders.userId, userId));
+  const totalOrders = rows.length;
+  const totalSpent = rows.reduce((sum, o) => sum + parseFloat(String(o.totalAmount ?? 0)), 0);
+  return { totalOrders, totalSpent };
+}
+
+export async function getOrderWithUser(orderId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select({ order: orders, user: users })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .limit(1);
+  return result[0];
 }
 
 // ─── Reporting ────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, Send, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, ExternalLink, Send, XCircle, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -117,6 +117,61 @@ export default function AdminSettings() {
                 </Button>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* GHL Integration Status */}
+        <div className="glass-card p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-accent" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <h2 className="font-semibold">GoHighLevel (GHL) Integration</h2>
+            <span className="ml-auto text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">Active</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            The platform automatically syncs member activity to your <strong>Certapep</strong> GHL sub-account.
+            Contacts are upserted by email, tagged, and moved through the <strong>Peptide Buy Group</strong> pipeline.
+          </p>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sync Events</p>
+            {[
+              { label: "Member Signup", desc: "Creates/updates contact, applies pbg-member tag, opens pipeline opportunity at \"Member Registered\"" },
+              { label: "Invite Code Redeemed", desc: "Applies pbg-verified tag, logs invite code used" },
+              { label: "Order Placed", desc: "Applies pbg-ordered tag, updates last buy name, order total, and total spent. Moves pipeline to \"Order Committed\"" },
+              { label: "Payment Received", desc: "Applies pbg-paid tag, updates total spent. Moves pipeline to \"Payment Received\"" },
+              { label: "Order Placed with Supplier", desc: "Moves pipeline to \"Order Placed with Supplier\"" },
+              { label: "Testing Started", desc: "Moves pipeline to \"Testing in Progress\"" },
+              { label: "COA Published", desc: "Applies pbg-coa-available tag, sets COA Available field. Moves pipeline to \"Ready to Ship\"" },
+              { label: "Order Shipped", desc: "Applies pbg-shipped tag, logs tracking number and carrier. Moves pipeline to \"Shipped\"" },
+              { label: "Order Complete", desc: "Applies pbg-complete tag. Moves pipeline to \"Completed\"" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-3 p-3 rounded-lg bg-muted/20">
+                <CheckCircle2 size={14} className="text-accent mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-border pt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inbound Webhook (Two-Way Sync)</p>
+            <p className="text-xs text-muted-foreground">Register this URL in GHL under <em>Settings → Webhooks</em> to receive contact updates back from GHL:</p>
+            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2">
+              <code className="text-xs flex-1 break-all">{window.location.origin}/api/ghl/webhook</code>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 shrink-0"
+                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/ghl/webhook`); toast.success("Webhook URL copied"); }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Optionally set <code className="bg-muted/40 px-1 rounded">GHL_WEBHOOK_SECRET</code> in your environment to validate incoming requests.</p>
           </div>
         </div>
 

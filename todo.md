@@ -93,3 +93,16 @@
 
 ## Round 4 Features
 - [x] Product stock toggle: on/off switch per product to mark as out of stock (hides from member order form)
+
+## GHL Integration
+- [x] GHL config constants file (location ID, pipeline ID, stage IDs, field keys)
+- [x] GHL service layer: upsertContact, addTags, removeTags, updateCustomFields, upsertOpportunity
+- [x] Wire GHL on member signup (create/update contact, tag pbg-member, stage: Member Registered)
+- [x] Wire GHL on invite code redemption (tag pbg-verified, update PBG Invite Code Used field)
+- [x] Wire GHL on order placed (tag pbg-ordered, update order fields, stage: Order Committed)
+- [x] Wire GHL on payment marked Paid (tag pbg-paid, update amount fields, stage: Payment Received)
+- [x] Wire GHL on order marked Shipped (tag pbg-shipped, update tracking fields, stage: Shipped)
+- [x] Wire GHL on buy marked Complete (buy-level event fans out to all members, tag pbg-complete, stage: Completed, opportunity status: won)
+- [x] Wire GHL on COA published (update pbg_coa_available field, stage: Ready to Ship — COA means product is verified and ready to distribute)
+- [x] Inbound GHL webhook handler: ContactUpdated syncs name back to platform; other events (tag changes, opportunity stage changes) are logged for V1 visibility
+- [x] GHL status panel in admin Settings page
