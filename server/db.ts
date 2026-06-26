@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   GroupBuy,
@@ -33,6 +33,9 @@ import {
   vendorRatings,
   vendorSkus,
   vendors,
+  vendorSkuCoas,
+  InsertVendorSkuCoa,
+  VendorSkuCoa,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -820,4 +823,41 @@ export async function upsertVendorRating(data: InsertVendorRating) {
         notes: data.notes ?? null,
       },
     });
+}
+
+// ─── Vendor SKU COAs ─────────────────────────────────────────────────────────
+
+export async function insertSkuCoa(data: InsertVendorSkuCoa): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(vendorSkuCoas).values(data);
+  return (result as any).insertId as number;
+}
+
+export async function listSkuCoas(vendorSkuId: number): Promise<VendorSkuCoa[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(vendorSkuCoas)
+    .where(eq(vendorSkuCoas.vendorSkuId, vendorSkuId))
+    .orderBy(desc(vendorSkuCoas.createdAt));
+}
+
+export async function deleteSkuCoa(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(vendorSkuCoas).where(eq(vendorSkuCoas.id, id));
+}
+
+export async function getLatestSkuPurity(vendorSkuId: number): Promise<{ purityPct: string | null; labName: string | null; testedAt: Date | null } | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select({ purityPct: vendorSkuCoas.purityPct, labName: vendorSkuCoas.labName, testedAt: vendorSkuCoas.testedAt })
+    .from(vendorSkuCoas)
+    .where(and(eq(vendorSkuCoas.vendorSkuId, vendorSkuId), isNotNull(vendorSkuCoas.purityPct)))
+    .orderBy(desc(vendorSkuCoas.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
 }

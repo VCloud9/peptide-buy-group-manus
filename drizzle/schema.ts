@@ -348,3 +348,22 @@ export const vendorRatings = mysqlTable("vendor_ratings", {
 
 export type VendorRating = typeof vendorRatings.$inferSelect;
 export type InsertVendorRating = typeof vendorRatings.$inferInsert;
+
+// ─── Vendor SKU COAs ─────────────────────────────────────────────────────────
+
+export const vendorSkuCoas = mysqlTable("vendor_sku_coas", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorSkuId: int("vendorSkuId").notNull(),
+  filename: varchar("filename", { length: 512 }).notNull(),
+  fileKey: varchar("fileKey", { length: 512 }).notNull(),  // S3 key
+  fileUrl: varchar("fileUrl", { length: 1024 }).notNull(), // presigned or permanent URL
+  labName: varchar("labName", { length: 255 }),
+  purityPct: decimal("purityPct", { precision: 5, scale: 2 }), // e.g. 98.50
+  testedAt: timestamp("testedAt"),
+  notes: text("notes"),
+  uploadedBy: int("uploadedBy").notNull(), // admin userId
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VendorSkuCoa = typeof vendorSkuCoas.$inferSelect;
+export type InsertVendorSkuCoa = typeof vendorSkuCoas.$inferInsert;

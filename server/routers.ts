@@ -73,6 +73,10 @@ import {
   getVendorRatings,
   getVendorRatingSummary,
   upsertVendorRating,
+  insertSkuCoa,
+  listSkuCoas,
+  deleteSkuCoa,
+  getLatestSkuPurity,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -1502,6 +1506,56 @@ export const appRouter = router({
           notes: input.notes ?? null,
         });
         return { success: true };
+      }),
+
+    // ── SKU COA procedures ────────────────────────────────────────────────────
+    uploadSkuCoa: adminProcedure
+      .input(z.object({
+        vendorSkuId: z.number(),
+        filename: z.string(),
+        fileBase64: z.string(), // base64-encoded file bytes
+        mimeType: z.string().default("application/pdf"),
+        labName: z.string().optional(),
+        purityPct: z.string().optional(), // decimal string e.g. "98.50"
+        testedAt: z.string().optional(),  // ISO date string
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import("./storage");
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const fileKey = `vendor-coas/${input.vendorSkuId}/${Date.now()}-${input.filename}`;
+        const { key, url } = await storagePut(fileKey, buffer, input.mimeType);
+        const id = await insertSkuCoa({
+          vendorSkuId: input.vendorSkuId,
+          filename: input.filename,
+          fileKey: key,
+          fileUrl: url,
+          labName: input.labName ?? null,
+          purityPct: input.purityPct ? (input.purityPct as any) : null,
+          testedAt: input.testedAt ? new Date(input.testedAt) : null,
+          notes: input.notes ?? null,
+          uploadedBy: ctx.user.id,
+        });
+        return { success: true, id, fileUrl: url };
+      }),
+
+    listSkuCoas: adminProcedure
+      .input(z.object({ vendorSkuId: z.number() }))
+      .query(async ({ input }) => {
+        return listSkuCoas(input.vendorSkuId);
+      }),
+
+    deleteSkuCoa: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteSkuCoa(input.id);
+        return { success: true };
+      }),
+
+    getLatestSkuPurity: adminProcedure
+      .input(z.object({ vendorSkuId: z.number() }))
+      .query(async ({ input }) => {
+        return getLatestSkuPurity(input.vendorSkuId);
       }),
   }),
   // ─── Reporting ────────────────────────────────────────────────────────────────

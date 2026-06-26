@@ -172,3 +172,16 @@
 - [x] Admin UI: Vendors link in admin sidebar nav
 - [x] Tests: vendor CRUD and import upsert logic
 - [x] Checkpoint + GitHub push
+
+## Round 12 — Vendor SKU COA Upload
+
+- [ ] Schema: add vendor_sku_coas table (vendorSkuId, filename, fileKey, fileUrl, labName, purityPct, testedAt, uploadedBy, notes)
+- [ ] Backend: vendors.uploadSkuCoa procedure — accept base64/multipart, upload to S3, insert row
+- [ ] Backend: vendors.listSkuCoas procedure — list COAs for a given vendorSkuId
+- [ ] Backend: vendors.deleteSkuCoa procedure — admin-only, delete S3 object + DB row
+- [ ] Admin UI: COA panel on VendorDetail SKU rows — expandable section per SKU showing COA list
+- [ ] Admin UI: Upload COA button — file picker (PDF/image), lab name, purity %, tested date, notes
+- [ ] Admin UI: COA list — filename, lab, purity badge, date, download link, delete button
+- [ ] Admin UI: Purity badge on SKU row — show latest purity % inline on the catalog table
+- [ ] Tests: COA upload and list procedures
+- [ ] Checkpoint + GitHub push

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -37,6 +37,12 @@ import {
   User,
   Edit2,
   ToggleLeft,
+  FlaskConical,
+  FileText,
+  Trash2,
+  ExternalLink,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
@@ -90,6 +96,11 @@ export default function AdminVendorDetail() {
   const [showEditPrice, setShowEditPrice] = useState(false);
   const [newPrice, setNewPrice] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [coaSkuId, setCoaSkuId] = useState<number | null>(null);
+  const [showCoaDialog, setShowCoaDialog] = useState(false);
+  const [expandedCoaSkuId, setExpandedCoaSkuId] = useState<number | null>(null);
+  const coaFileRef = useRef<HTMLInputElement>(null);
+  const [coaForm, setCoaForm] = useState({ labName: "", purityPct: "", testedAt: "", notes: "", file: null as File | null });
 
   const utils = trpc.useUtils();
 
@@ -130,6 +141,48 @@ export default function AdminVendorDetail() {
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
+
+  const uploadCoaMutation = trpc.vendors.uploadSkuCoa.useMutation({
+    onSuccess: () => {
+      toast.success("COA uploaded successfully.");
+      if (coaSkuId) utils.vendors.listSkuCoas.invalidate({ vendorSkuId: coaSkuId });
+      setShowCoaDialog(false);
+      setCoaForm({ labName: "", purityPct: "", testedAt: "", notes: "", file: null });
+    },
+    onError: (e) => toast.error(`Upload failed: ${e.message}`),
+  });
+
+  const deleteCoaMutation = trpc.vendors.deleteSkuCoa.useMutation({
+    onSuccess: () => {
+      toast.success("COA removed.");
+      if (expandedCoaSkuId) utils.vendors.listSkuCoas.invalidate({ vendorSkuId: expandedCoaSkuId });
+    },
+    onError: (e) => toast.error(`Delete failed: ${e.message}`),
+  });
+
+  const { data: coaList, isLoading: coaListLoading } = trpc.vendors.listSkuCoas.useQuery(
+    { vendorSkuId: expandedCoaSkuId! },
+    { enabled: !!expandedCoaSkuId }
+  );
+
+  const handleCoaUpload = () => {
+    if (!coaSkuId || !coaForm.file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      uploadCoaMutation.mutate({
+        vendorSkuId: coaSkuId,
+        filename: coaForm.file!.name,
+        fileBase64: base64,
+        mimeType: coaForm.file!.type || "application/pdf",
+        labName: coaForm.labName || undefined,
+        purityPct: coaForm.purityPct || undefined,
+        testedAt: coaForm.testedAt || undefined,
+        notes: coaForm.notes || undefined,
+      });
+    };
+    reader.readAsDataURL(coaForm.file);
+  };
 
   const updateVendorMutation = trpc.vendors.update.useMutation({
     onSuccess: () => {
@@ -291,8 +344,10 @@ export default function AdminVendorDetail() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(lineSkus ?? []).map((sku) => (
-                          <TableRow key={sku.id} className={!sku.isActive ? "opacity-50" : ""}>
+                        {(lineSkus ?? []).map((sku) => {
+                          return (
+                          <React.Fragment key={sku.id}>
+                          <TableRow className={!sku.isActive ? "opacity-50" : ""}>
                             <TableCell className="font-mono text-xs">{sku.skuCode}</TableCell>
                             <TableCell>
                               <div className="font-medium text-sm">{sku.name}</div>
@@ -312,6 +367,15 @@ export default function AdminVendorDetail() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs gap-1"
+                                  onClick={() => setExpandedCoaSkuId(expandedCoaSkuId === sku.id ? null : sku.id)}
+                                >
+                                  {expandedCoaSkuId === sku.id ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                  COAs
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -350,7 +414,78 @@ export default function AdminVendorDetail() {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          {/* Expandable COA panel */}
+                          {expandedCoaSkuId === sku.id && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="bg-muted/20 px-6 py-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-sm font-medium">
+                                      <FlaskConical size={14} className="text-accent" />
+                                      Certificates of Analysis - {sku.name}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1.5 text-xs"
+                                      onClick={() => { setCoaSkuId(sku.id); setShowCoaDialog(true); }}
+                                    >
+                                      <Upload size={12} /> Upload COA
+                                    </Button>
+                                  </div>
+                                  {coaListLoading ? (
+                                    <p className="text-xs text-muted-foreground">Loading...</p>
+                                  ) : !coaList || coaList.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground italic">No COAs uploaded yet. Upload a PDF or image to start tracking purity.</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {coaList.map((coa) => (
+                                        <div key={coa.id} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/60 px-3 py-2">
+                                          <div className="flex items-center gap-3">
+                                            <FileText size={14} className="text-muted-foreground shrink-0" />
+                                            <div>
+                                              <p className="text-xs font-medium">{coa.filename}</p>
+                                              <div className="flex items-center gap-2 mt-0.5">
+                                                {coa.labName && <span className="text-xs text-muted-foreground">{coa.labName}</span>}
+                                                {coa.purityPct && (
+                                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                                    {parseFloat(coa.purityPct as string).toFixed(1)}% purity
+                                                  </Badge>
+                                                )}
+                                                {coa.testedAt && (
+                                                  <span className="text-xs text-muted-foreground">
+                                                    {new Date(coa.testedAt).toLocaleDateString()}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <a href={coa.fileUrl} target="_blank" rel="noopener noreferrer">
+                                              <Button variant="ghost" size="sm" className="text-xs gap-1">
+                                                <ExternalLink size={11} /> View
+                                              </Button>
+                                            </a>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="text-xs text-destructive hover:text-destructive"
+                                              onClick={() => { if (confirm("Remove this COA?")) deleteCoaMutation.mutate({ id: coa.id }); }}
+                                            >
+                                              <Trash2 size={11} />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          </React.Fragment>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -544,6 +679,77 @@ export default function AdminVendorDetail() {
               }}
             >
               {updateSkuMutation.isPending ? "Saving..." : "Update Price"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* COA Upload Dialog */}
+      <Dialog open={showCoaDialog} onOpenChange={(open) => { setShowCoaDialog(open); if (!open) setCoaForm({ labName: "", purityPct: "", testedAt: "", notes: "", file: null }); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical size={16} className="text-accent" /> Upload Certificate of Analysis
+            </DialogTitle>
+            <DialogDescription>
+              {skus?.find((s) => s.id === coaSkuId)?.name} - attach a COA PDF or image for purity tracking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">File *</label>
+              <div className="mt-1">
+                <input
+                  ref={coaFileRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setCoaForm((prev) => ({ ...prev, file: f }));
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-sm"
+                  onClick={() => coaFileRef.current?.click()}
+                >
+                  <Upload size={14} />
+                  {coaForm.file ? coaForm.file.name : "Choose PDF or image..."}
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lab Name</label>
+                <Input className="mt-1" placeholder="e.g. Janoshik" value={coaForm.labName}
+                  onChange={(e) => setCoaForm((prev) => ({ ...prev, labName: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Purity %</label>
+                <Input className="mt-1" type="number" step="0.1" min="0" max="100" placeholder="99.5" value={coaForm.purityPct}
+                  onChange={(e) => setCoaForm((prev) => ({ ...prev, purityPct: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Test Date</label>
+              <Input className="mt-1" type="date" value={coaForm.testedAt}
+                onChange={(e) => setCoaForm((prev) => ({ ...prev, testedAt: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</label>
+              <Input className="mt-1" placeholder="Optional notes" value={coaForm.notes}
+                onChange={(e) => setCoaForm((prev) => ({ ...prev, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCoaDialog(false)}>Cancel</Button>
+            <Button
+              disabled={!coaForm.file || uploadCoaMutation.isPending}
+              onClick={handleCoaUpload}
+            >
+              {uploadCoaMutation.isPending ? "Uploading..." : "Upload COA"}
             </Button>
           </DialogFooter>
         </DialogContent>
