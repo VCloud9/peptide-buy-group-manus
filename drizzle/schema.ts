@@ -286,6 +286,7 @@ export const vendors = mysqlTable("vendors", {
   website: varchar("website", { length: 512 }),
   contactName: varchar("contactName", { length: 255 }),
   contactEmail: varchar("contactEmail", { length: 320 }),
+  whatsappNumber: varchar("whatsappNumber", { length: 50 }),
   notes: text("notes"),
   negotiatedDiscountPct: decimal("negotiatedDiscountPct", { precision: 5, scale: 2 }), // e.g. 10.00 = 10% off all SKUs
   isActive: boolean("isActive").default(true).notNull(),

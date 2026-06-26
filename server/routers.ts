@@ -1316,6 +1316,7 @@ export const appRouter = router({
         website: z.string().optional(),
         contactName: z.string().optional(),
         contactEmail: z.string().email().optional(),
+        whatsappNumber: z.string().optional(),
         notes: z.string().optional(),
         negotiatedDiscountPct: z.number().min(0).max(100).nullable().optional(),
       }))
@@ -1326,6 +1327,7 @@ export const appRouter = router({
           website: input.website ?? null,
           contactName: input.contactName ?? null,
           contactEmail: input.contactEmail ?? null,
+          whatsappNumber: input.whatsappNumber ?? null,
           notes: input.notes ?? null,
           negotiatedDiscountPct: input.negotiatedDiscountPct != null ? String(input.negotiatedDiscountPct) as any : null,
           isActive: true,
@@ -1340,6 +1342,7 @@ export const appRouter = router({
         website: z.string().nullable().optional(),
         contactName: z.string().nullable().optional(),
         contactEmail: z.string().nullable().optional(),
+        whatsappNumber: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
         negotiatedDiscountPct: z.number().min(0).max(100).nullable().optional(),
         isActive: z.boolean().optional(),
