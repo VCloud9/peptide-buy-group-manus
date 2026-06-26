@@ -295,6 +295,11 @@ export default function AdminVendorDetail() {
             )}
             {vendor.contactName && <span className="flex items-center gap-1"><User size={12} /> {vendor.contactName}</span>}
             {vendor.contactEmail && <span className="flex items-center gap-1"><Mail size={12} /> {vendor.contactEmail}</span>}
+            {vendor.negotiatedDiscountPct && parseFloat(vendor.negotiatedDiscountPct as string) > 0 && (
+              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-xs font-semibold">
+                {parseFloat(vendor.negotiatedDiscountPct as string)}% Negotiated Discount
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -383,7 +388,8 @@ export default function AdminVendorDetail() {
                           <TableHead>SKU Code</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Unit</TableHead>
-                          <TableHead className="text-right">Price</TableHead>
+                          <TableHead className="text-right">List Price</TableHead>
+                          <TableHead className="text-right">Effective Price</TableHead>
                           <TableHead className="text-right">Min Qty</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
@@ -402,8 +408,13 @@ export default function AdminVendorDetail() {
                               )}
                             </TableCell>
                             <TableCell className="text-sm">{sku.unit}</TableCell>
-                            <TableCell className="text-right font-mono font-semibold">
+                            <TableCell className="text-right font-mono text-muted-foreground">
                               ${parseFloat(sku.currentPrice as string).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold text-emerald-600">
+                              {vendor.negotiatedDiscountPct && parseFloat(vendor.negotiatedDiscountPct as string) > 0
+                                ? `$${(parseFloat(sku.currentPrice as string) * (1 - parseFloat(vendor.negotiatedDiscountPct as string) / 100)).toFixed(2)}`
+                                : `$${parseFloat(sku.currentPrice as string).toFixed(2)}`}
                             </TableCell>
                             <TableCell className="text-right text-sm">{sku.minQuantity}</TableCell>
                             <TableCell>
@@ -921,6 +932,19 @@ export default function AdminVendorDetail() {
                 </div>
               </div>
               <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Negotiated Discount %</label>
+                <div className="mt-1 relative">
+                  <Input
+                    type="number" min={0} max={100} step={0.5}
+                    placeholder="e.g. 10 for 10% off all orders"
+                    value={editForm.negotiatedDiscountPct ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, negotiatedDiscountPct: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Applied automatically to all effective price calculations for this vendor.</p>
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</label>
                 <textarea
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
@@ -943,6 +967,7 @@ export default function AdminVendorDetail() {
                 contactName: editForm.contactName || null,
                 contactEmail: editForm.contactEmail || null,
                 notes: editForm.notes || null,
+                negotiatedDiscountPct: editForm.negotiatedDiscountPct ?? null,
               })}
             >
               {updateVendorMutation.isPending ? "Saving..." : "Save Changes"}

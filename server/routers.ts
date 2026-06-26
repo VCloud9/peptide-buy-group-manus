@@ -77,6 +77,9 @@ import {
   listSkuCoas,
   deleteSkuCoa,
   getLatestSkuPurity,
+  getTiersBySkuId,
+  upsertSkuTiers,
+  calcEffectivePrice,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -1314,8 +1317,9 @@ export const appRouter = router({
         contactName: z.string().optional(),
         contactEmail: z.string().email().optional(),
         notes: z.string().optional(),
+        negotiatedDiscountPct: z.number().min(0).max(100).nullable().optional(),
       }))
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const id = await createVendor({
           name: input.name,
           country: input.country,
@@ -1323,6 +1327,7 @@ export const appRouter = router({
           contactName: input.contactName ?? null,
           contactEmail: input.contactEmail ?? null,
           notes: input.notes ?? null,
+          negotiatedDiscountPct: input.negotiatedDiscountPct != null ? String(input.negotiatedDiscountPct) as any : null,
           isActive: true,
         });
         return { id };
@@ -1336,11 +1341,17 @@ export const appRouter = router({
         contactName: z.string().nullable().optional(),
         contactEmail: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
+        negotiatedDiscountPct: z.number().min(0).max(100).nullable().optional(),
         isActive: z.boolean().optional(),
       }))
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        await updateVendor(id, data);
+        const { id, negotiatedDiscountPct, ...rest } = input;
+        await updateVendor(id, {
+          ...rest,
+          ...(negotiatedDiscountPct !== undefined
+            ? { negotiatedDiscountPct: negotiatedDiscountPct != null ? String(negotiatedDiscountPct) as any : null }
+            : {}),
+        });
         return { success: true };
       }),
     deactivate: adminProcedure
@@ -1431,6 +1442,8 @@ export const appRouter = router({
           description: z.string().optional(),
           unit: z.string().optional(),
           minQuantity: z.number().int().min(1).optional(),
+          // Optional price tiers: [{minQty, price}]
+          tiers: z.array(z.object({ minQty: z.number().int().min(1), price: z.string() })).optional(),
         })),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -1452,14 +1465,40 @@ export const appRouter = router({
             },
             ctx.user.id
           );
-          if (skuId) {
-            const existing = await getSkuById(skuId);
-            if (!existing) added++;
-            else updated++;
+          // Upsert price tiers if provided
+          if (row.tiers && row.tiers.length > 0) {
+            await upsertSkuTiers(skuId, row.tiers);
           }
+          const existing = await getSkuById(skuId);
+          if (!existing) added++;
+          else updated++;
           if (priceChanged) priceChanges++;
         }
         return { added, updated, priceChanges, total: input.rows.length };
+      }),
+    // ─── SKU Price Tiers ─────────────────────────────────────────────────────
+    listSkuTiers: adminProcedure
+      .input(z.object({ vendorSkuId: z.number() }))
+      .query(async ({ input }) => {
+        return getTiersBySkuId(input.vendorSkuId);
+      }),
+    upsertSkuTiers: adminProcedure
+      .input(z.object({
+        vendorSkuId: z.number(),
+        tiers: z.array(z.object({ minQty: z.number().int().min(1), price: z.string() })),
+      }))
+      .mutation(async ({ input }) => {
+        await upsertSkuTiers(input.vendorSkuId, input.tiers);
+        return { success: true };
+      }),
+    calcEffectivePrice: adminProcedure
+      .input(z.object({ vendorSkuId: z.number(), qty: z.number().int().min(1) }))
+      .query(async ({ input }) => {
+        const sku = await getSkuById(input.vendorSkuId);
+        if (!sku) throw new TRPCError({ code: "NOT_FOUND" });
+        const vendor = await getVendorById(sku.vendorId);
+        const tiers = await getTiersBySkuId(input.vendorSkuId);
+        return calcEffectivePrice(sku.currentPrice as string, tiers, input.qty, vendor?.negotiatedDiscountPct as string | null);
       }),
     // ─── Price History ────────────────────────────────────────────────────────
     priceHistory: adminProcedure

@@ -185,3 +185,20 @@
 - [ ] Admin UI: Purity badge on SKU row — show latest purity % inline on the catalog table
 - [ ] Tests: COA upload and list procedures
 - [ ] Checkpoint + GitHub push
+
+## Round 14 — Quantity Discount Tiers + Negotiated Vendor Discount
+
+- [ ] Schema: add negotiatedDiscountPct (decimal, nullable) to vendors table
+- [ ] Schema: add vendor_sku_tiers table (id, vendorSkuId, minQty, price)
+- [ ] Migration: generate and apply SQL
+- [ ] Backend: update vendor create/update procedures to accept negotiatedDiscountPct
+- [ ] Backend: update vendor SKU import to upsert tiers from CSV tier columns
+- [ ] Backend: add listSkuTiers procedure
+- [ ] Backend: update listVendorSkus to include tiers and effective price after discount
+- [ ] CSV: re-extract all 3 price tiers from all 7 vendor PDFs
+- [ ] Admin UI: negotiatedDiscountPct field on vendor create/edit form with % badge
+- [ ] Admin UI: effective price display on vendor detail SKU table (list → effective)
+- [ ] Admin UI: tier table expandable on SKU row showing qty thresholds and prices
+- [ ] Admin UI: effective price shown in buy catalog picker
+- [ ] Tests: tier upsert and effective price calculation
+- [ ] Checkpoint + GitHub push

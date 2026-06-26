@@ -36,6 +36,9 @@ import {
   vendorSkuCoas,
   InsertVendorSkuCoa,
   VendorSkuCoa,
+  vendorSkuTiers,
+  InsertVendorSkuTier,
+  VendorSkuTier,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -860,4 +863,61 @@ export async function getLatestSkuPurity(vendorSkuId: number): Promise<{ purityP
     .orderBy(desc(vendorSkuCoas.createdAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+// ─── Vendor SKU Price Tiers ───────────────────────────────────────────────────
+
+export async function getTiersBySkuId(vendorSkuId: number): Promise<VendorSkuTier[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(vendorSkuTiers)
+    .where(eq(vendorSkuTiers.vendorSkuId, vendorSkuId))
+    .orderBy(vendorSkuTiers.minQty);
+}
+
+/**
+ * Upsert price tiers for a SKU. Replaces all existing tiers for the SKU.
+ * Used during import to sync the full tier set from the vendor price list.
+ */
+export async function upsertSkuTiers(
+  vendorSkuId: number,
+  tiers: Array<{ minQty: number; price: string }>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (tiers.length === 0) return;
+  // Delete existing tiers and re-insert (clean upsert for full tier set)
+  await db.delete(vendorSkuTiers).where(eq(vendorSkuTiers.vendorSkuId, vendorSkuId));
+  await db.insert(vendorSkuTiers).values(
+    tiers.map((t) => ({ vendorSkuId, minQty: t.minQty, price: t.price as any }))
+  );
+}
+
+export async function deleteTiersBySkuId(vendorSkuId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(vendorSkuTiers).where(eq(vendorSkuTiers.vendorSkuId, vendorSkuId));
+}
+
+/**
+ * Calculate the effective price for a given quantity, applying:
+ * 1. The best matching tier price (lowest minQty that qty satisfies)
+ * 2. The vendor's negotiated discount percentage (if any)
+ */
+export function calcEffectivePrice(
+  basePrice: string,
+  tiers: VendorSkuTier[],
+  qty: number,
+  discountPct: string | null
+): { listPrice: number; tierPrice: number; effectivePrice: number; savingsPct: number } {
+  const base = parseFloat(basePrice);
+  // Find the best tier: highest minQty that is <= qty
+  const applicableTiers = tiers.filter((t) => qty >= t.minQty).sort((a, b) => b.minQty - a.minQty);
+  const tierPrice = applicableTiers.length > 0 ? parseFloat(applicableTiers[0].price as string) : base;
+  const discount = discountPct ? parseFloat(discountPct as string) / 100 : 0;
+  const effectivePrice = tierPrice * (1 - discount);
+  const savingsPct = base > 0 ? ((base - effectivePrice) / base) * 100 : 0;
+  return { listPrice: base, tierPrice, effectivePrice: Math.round(effectivePrice * 100) / 100, savingsPct: Math.round(savingsPct * 10) / 10 };
 }

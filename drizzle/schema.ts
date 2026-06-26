@@ -287,6 +287,7 @@ export const vendors = mysqlTable("vendors", {
   contactName: varchar("contactName", { length: 255 }),
   contactEmail: varchar("contactEmail", { length: 320 }),
   notes: text("notes"),
+  negotiatedDiscountPct: decimal("negotiatedDiscountPct", { precision: 5, scale: 2 }), // e.g. 10.00 = 10% off all SKUs
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -367,3 +368,17 @@ export const vendorSkuCoas = mysqlTable("vendor_sku_coas", {
 
 export type VendorSkuCoa = typeof vendorSkuCoas.$inferSelect;
 export type InsertVendorSkuCoa = typeof vendorSkuCoas.$inferInsert;
+
+// ─── Vendor SKU Price Tiers ───────────────────────────────────────────────────
+
+export const vendorSkuTiers = mysqlTable("vendor_sku_tiers", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorSkuId: int("vendorSkuId").notNull(),
+  minQty: int("minQty").notNull(),   // minimum quantity to qualify for this price
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VendorSkuTier = typeof vendorSkuTiers.$inferSelect;
+export type InsertVendorSkuTier = typeof vendorSkuTiers.$inferInsert;
