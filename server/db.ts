@@ -9,6 +9,9 @@ import {
   InsertProduct,
   InsertTestResult,
   InsertUser,
+  InsertVendor,
+  InsertVendorRating,
+  InsertVendorSku,
   Order,
   groupBuys,
   inviteCodeUses,
@@ -24,8 +27,12 @@ import {
   MembershipRequest,
   skoolWebhookConfig,
   skoolWebhookLog,
+  skuPriceHistory,
   testResults,
   users,
+  vendorRatings,
+  vendorSkus,
+  vendors,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -605,4 +612,212 @@ export async function updateMembershipRequest(id: number, data: Partial<{
   const db = await getDb();
   if (!db) return;
   await db.update(membershipRequests).set(data).where(eq(membershipRequests.id, id));
+}
+
+// ─── Vendors ──────────────────────────────────────────────────────────────────
+
+export async function getAllVendors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(vendors).orderBy(vendors.name);
+}
+
+export async function getActiveVendors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(vendors).where(eq(vendors.isActive, true)).orderBy(vendors.name);
+}
+
+export async function getVendorById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(vendors).where(eq(vendors.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createVendor(data: InsertVendor): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(vendors).values(data);
+  return (result as any).insertId as number;
+}
+
+export async function updateVendor(id: number, data: Partial<InsertVendor>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(vendors).set(data).where(eq(vendors.id, id));
+}
+
+export async function deactivateVendor(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(vendors).set({ isActive: false }).where(eq(vendors.id, id));
+}
+
+// ─── Vendor SKUs ──────────────────────────────────────────────────────────────
+
+export async function getSkusByVendor(vendorId: number, includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const query = db.select().from(vendorSkus).where(
+    includeInactive
+      ? eq(vendorSkus.vendorId, vendorId)
+      : and(eq(vendorSkus.vendorId, vendorId), eq(vendorSkus.isActive, true))
+  ).orderBy(vendorSkus.productLine, vendorSkus.name);
+  return query;
+}
+
+export async function getSkuById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(vendorSkus).where(eq(vendorSkus.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createSku(data: InsertVendorSku): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(vendorSkus).values(data);
+  return (result as any).insertId as number;
+}
+
+export async function updateSku(id: number, data: Partial<InsertVendorSku>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(vendorSkus).set(data).where(eq(vendorSkus.id, id));
+}
+
+export async function deactivateSku(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(vendorSkus).set({ isActive: false }).where(eq(vendorSkus.id, id));
+}
+
+/**
+ * Upsert a SKU by (vendorId, skuCode). If price changed, writes a price history row first.
+ * Returns { skuId, priceChanged }
+ */
+export async function upsertVendorSku(
+  data: InsertVendorSku,
+  recordedBy: number
+): Promise<{ skuId: number; priceChanged: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Look up existing SKU by vendor + skuCode
+  const existing = await db
+    .select()
+    .from(vendorSkus)
+    .where(and(eq(vendorSkus.vendorId, data.vendorId), eq(vendorSkus.skuCode, data.skuCode)))
+    .limit(1);
+
+  if (existing.length === 0) {
+    // New SKU — insert and write baseline price history
+    const skuId = await createSku({ ...data, isActive: true });
+    await db.insert(skuPriceHistory).values({
+      vendorSkuId: skuId,
+      price: data.currentPrice,
+      source: "import",
+      recordedBy,
+    });
+    return { skuId, priceChanged: false };
+  }
+
+  const sku = existing[0];
+  const oldPrice = parseFloat(sku.currentPrice as string);
+  const newPrice = parseFloat(data.currentPrice as string);
+  const priceChanged = Math.abs(oldPrice - newPrice) > 0.001;
+
+  if (priceChanged) {
+    // Write history row BEFORE updating
+    await db.insert(skuPriceHistory).values({
+      vendorSkuId: sku.id,
+      price: data.currentPrice,
+      source: "import",
+      recordedBy,
+    });
+  }
+
+  // Update SKU (always update name/details; only update price if changed)
+  await db.update(vendorSkus).set({
+    name: data.name,
+    productLine: data.productLine ?? sku.productLine,
+    description: data.description ?? sku.description,
+    unit: data.unit ?? sku.unit,
+    currentPrice: data.currentPrice,
+    minQuantity: data.minQuantity ?? sku.minQuantity,
+    isActive: true, // re-activate if it was soft-deleted
+  }).where(eq(vendorSkus.id, sku.id));
+
+  return { skuId: sku.id, priceChanged };
+}
+
+// ─── SKU Price History ────────────────────────────────────────────────────────
+
+export async function getPriceHistoryBySku(vendorSkuId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(skuPriceHistory)
+    .where(eq(skuPriceHistory.vendorSkuId, vendorSkuId))
+    .orderBy(desc(skuPriceHistory.effectiveAt));
+}
+
+export async function recordManualPriceChange(vendorSkuId: number, newPrice: string, recordedBy: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(skuPriceHistory).values({
+    vendorSkuId,
+    price: newPrice as any,
+    source: "manual",
+    recordedBy,
+  });
+  await db.update(vendorSkus).set({ currentPrice: newPrice as any }).where(eq(vendorSkus.id, vendorSkuId));
+}
+
+// ─── Vendor Ratings ───────────────────────────────────────────────────────────
+
+export async function getVendorRatings(vendorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(vendorRatings)
+    .where(eq(vendorRatings.vendorId, vendorId))
+    .orderBy(desc(vendorRatings.createdAt));
+}
+
+export async function getVendorRatingSummary(vendorId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const ratings = await getVendorRatings(vendorId);
+  if (ratings.length === 0) return null;
+  const avg = (key: keyof typeof ratings[0]) =>
+    ratings.reduce((s, r) => s + Number(r[key]), 0) / ratings.length;
+  return {
+    count: ratings.length,
+    quality: avg("qualityScore"),
+    communication: avg("commScore"),
+    speed: avg("speedScore"),
+    packaging: avg("packagingScore"),
+    overall: (avg("qualityScore") + avg("commScore") + avg("speedScore") + avg("packagingScore")) / 4,
+  };
+}
+
+export async function upsertVendorRating(data: InsertVendorRating) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db
+    .insert(vendorRatings)
+    .values(data)
+    .onDuplicateKeyUpdate({
+      set: {
+        qualityScore: data.qualityScore,
+        commScore: data.commScore,
+        speedScore: data.speedScore,
+        packagingScore: data.packagingScore,
+        notes: data.notes ?? null,
+      },
+    });
 }

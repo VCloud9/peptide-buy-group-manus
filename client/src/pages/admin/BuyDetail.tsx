@@ -189,12 +189,34 @@ export default function AdminBuyDetail() {
   });
 
   // Product dialog
-  const EMPTY_PRODUCT = { name: "", description: "", pricePerUnit: "", unit: "vial", minQuantity: "1", maxQuantity: "" };
+  const EMPTY_PRODUCT = { name: "", description: "", pricePerUnit: "", unit: "vial", minQuantity: "1", maxQuantity: "", vendorSkuId: "" };
   const [productDialog, setProductDialog] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
   const setP = (f: keyof typeof EMPTY_PRODUCT) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProductForm((prev) => ({ ...prev, [f]: e.target.value }));
+
+  // Catalog picker — load SKUs for the buy's vendor (if linked)
+  const buyVendorId = (data?.buy as any)?.vendorId ?? null;
+  const { data: vendorSkus } = trpc.vendors.listSkus.useQuery(
+    { vendorId: buyVendorId! },
+    { enabled: !!buyVendorId }
+  );
+  const handleCatalogSelect = (skuId: string) => {
+    if (!skuId) { setProductForm(EMPTY_PRODUCT); return; }
+    const sku = vendorSkus?.find((s) => String(s.id) === skuId);
+    if (sku) {
+      setProductForm({
+        vendorSkuId: skuId,
+        name: sku.name,
+        description: sku.description ?? "",
+        pricePerUnit: parseFloat(sku.currentPrice as string).toFixed(2),
+        unit: sku.unit ?? "vial",
+        minQuantity: "1",
+        maxQuantity: "",
+      });
+    }
+  };
 
   // Edit product dialog
   const [editProductDialog, setEditProductDialog] = useState(false);
@@ -211,6 +233,7 @@ export default function AdminBuyDetail() {
       unit: p.unit,
       minQuantity: String(p.minQuantity),
       maxQuantity: p.maxQuantity ? String(p.maxQuantity) : "",
+      vendorSkuId: (p as any).vendorSkuId ? String((p as any).vendorSkuId) : "",
     });
     setEditProductDialog(true);
   };
@@ -606,10 +629,31 @@ export default function AdminBuyDetail() {
       />
 
       {/* Product Dialog */}
-      <Dialog open={productDialog} onOpenChange={setProductDialog}>
+      <Dialog open={productDialog} onOpenChange={(v) => { setProductDialog(v); if (!v) setProductForm(EMPTY_PRODUCT); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Product</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
+            {/* Catalog picker — only shown when buy has a linked vendor with SKUs */}
+            {vendorSkus && vendorSkus.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Quick-fill from vendor catalog</Label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={productForm.vendorSkuId}
+                  onChange={(e) => handleCatalogSelect(e.target.value)}
+                >
+                  <option value="">— Select a SKU to auto-fill —</option>
+                  {vendorSkus.map((s) => (
+                    <option key={s.id} value={String(s.id)}>
+                      {s.name} — ${parseFloat(s.currentPrice as string).toFixed(2)}/{s.unit}
+                    </option>
+                  ))}
+                </select>
+                {productForm.vendorSkuId && (
+                  <p className="text-xs text-emerald-500">Fields pre-filled from catalog. You can still edit them below.</p>
+                )}
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Name *</Label>
               <Input value={productForm.name} onChange={setP("name")} placeholder="BPC-157 5mg" />
@@ -640,8 +684,17 @@ export default function AdminBuyDetail() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setProductDialog(false)}>Cancel</Button>
-            <Button onClick={() => createProduct.mutate({ groupBuyId: buyId, name: productForm.name, description: productForm.description || undefined, pricePerUnit: productForm.pricePerUnit, unit: productForm.unit, minQuantity: parseInt(productForm.minQuantity) || 1, maxQuantity: productForm.maxQuantity ? parseInt(productForm.maxQuantity) : undefined })} disabled={createProduct.isPending}>
+            <Button variant="outline" onClick={() => { setProductDialog(false); setProductForm(EMPTY_PRODUCT); }}>Cancel</Button>
+            <Button onClick={() => createProduct.mutate({
+              groupBuyId: buyId,
+              vendorSkuId: productForm.vendorSkuId ? parseInt(productForm.vendorSkuId) : undefined,
+              name: productForm.name,
+              description: productForm.description || undefined,
+              pricePerUnit: productForm.pricePerUnit,
+              unit: productForm.unit,
+              minQuantity: parseInt(productForm.minQuantity) || 1,
+              maxQuantity: productForm.maxQuantity ? parseInt(productForm.maxQuantity) : undefined,
+            })} disabled={createProduct.isPending}>
               Add
             </Button>
           </DialogFooter>

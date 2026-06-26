@@ -150,3 +150,25 @@
 - [x] Wire /faq into landing page nav and How to Join page
 - [x] GHL AI conversation agent prompt (written document)
 - [x] GHL AI voice agent prompt (written document)
+
+## Round 11 — Vendor Catalog Core
+
+- [x] Schema: add vendors table (name, country ISO, website, contactName, contactEmail, notes, isActive)
+- [x] Schema: add vendor_skus table (vendorId, skuCode unique per vendor, name, productLine, description, unit, currentPrice, minQuantity, isActive)
+- [x] Schema: add sku_price_history table (vendorSkuId, price, effectiveAt, source enum, recordedBy)
+- [x] Schema: add vendor_ratings table (vendorId, userId, groupBuyId unique key, 4 score columns, notes)
+- [x] Schema: add nullable vendorId FK to group_buys
+- [x] Schema: add nullable vendorSkuId FK to products
+- [x] Backend: vendor CRUD procedures (create, update, list, get, deactivate)
+- [x] Backend: vendor SKU CRUD procedures (create, update, list, deactivate)
+- [x] Backend: price-list CSV/XLSX import with upsert + price history writes
+- [x] Backend: listVendorSkus catalog picker procedure
+- [x] Backend: getVendorPriceHistory procedure
+- [x] Admin UI: Vendors list page (/admin/vendors)
+- [x] Admin UI: Vendor detail page with SKU catalog table and price history
+- [x] Admin UI: Price-list import modal (reuse existing CSV column-mapping UX)
+- [x] Admin UI: Vendor dropdown on group buy create/edit form with lead-time estimate
+- [x] Admin UI: "Add from Catalog" tab on product add flow (multi-select, price pre-filled)
+- [x] Admin UI: Vendors link in admin sidebar nav
+- [x] Tests: vendor CRUD and import upsert logic
+- [x] Checkpoint + GitHub push

@@ -26,6 +26,8 @@ import AdminMembers from "./pages/admin/Members";
 import AdminReporting from "./pages/admin/Reporting";
 import AdminSettings from "./pages/admin/Settings";
 import AdminInviteCodes from "./pages/admin/InviteCodes";
+import AdminVendors from "./pages/admin/Vendors";
+import AdminVendorDetail from "./pages/admin/VendorDetail";
 
 // Gate
 import InviteGate from "./components/InviteGate";
@@ -54,6 +56,8 @@ function Router() {
       <Route path="/admin/reporting" component={AdminReporting} />
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/invite-codes" component={AdminInviteCodes} />
+      <Route path="/admin/vendors" component={AdminVendors} />
+      <Route path="/admin/vendors/:id" component={AdminVendorDetail} />
 
       {/* Fallback */}
       <Route path="/404" component={NotFound} />

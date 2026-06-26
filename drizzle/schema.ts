@@ -7,6 +7,7 @@ import {
   mysqlTable,
   text,
   timestamp,
+  tinyint,
   varchar,
 } from "drizzle-orm/mysql-core";
 
@@ -55,6 +56,7 @@ export const groupBuys = mysqlTable("group_buys", {
   moqTarget: decimal("moqTarget", { precision: 12, scale: 2 }).notNull(),
   participantCap: int("participantCap"),
   endDate: timestamp("endDate"),
+  vendorId: int("vendorId"),
   vendorName: varchar("vendorName", { length: 255 }),
   vendorCountry: varchar("vendorCountry", { length: 128 }),
   notes: text("notes"),
@@ -71,6 +73,7 @@ export type InsertGroupBuy = typeof groupBuys.$inferInsert;
 export const products = mysqlTable("products", {
   id: int("id").autoincrement().primaryKey(),
   groupBuyId: int("groupBuyId").notNull(),
+  vendorSkuId: int("vendorSkuId"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   pricePerUnit: decimal("pricePerUnit", { precision: 10, scale: 2 }).notNull(),
@@ -273,3 +276,75 @@ export const membershipRequests = mysqlTable("membership_requests", {
 });
 export type MembershipRequest = typeof membershipRequests.$inferSelect;
 export type InsertMembershipRequest = typeof membershipRequests.$inferInsert;
+
+// ─── Vendors ─────────────────────────────────────────────────────────────────
+
+export const vendors = mysqlTable("vendors", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  country: varchar("country", { length: 2 }).notNull(), // ISO 3166-1 alpha-2
+  website: varchar("website", { length: 512 }),
+  contactName: varchar("contactName", { length: 255 }),
+  contactEmail: varchar("contactEmail", { length: 320 }),
+  notes: text("notes"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Vendor = typeof vendors.$inferSelect;
+export type InsertVendor = typeof vendors.$inferInsert;
+
+// ─── Vendor SKUs ──────────────────────────────────────────────────────────────
+
+export const vendorSkus = mysqlTable("vendor_skus", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorId: int("vendorId").notNull(),
+  skuCode: varchar("skuCode", { length: 128 }).notNull(), // vendor's own item code; upsert key
+  name: varchar("name", { length: 255 }).notNull(),
+  productLine: varchar("productLine", { length: 128 }),  // sub-brand / category grouping
+  description: text("description"),
+  unit: varchar("unit", { length: 64 }).default("vial").notNull(),
+  currentPrice: decimal("currentPrice", { precision: 10, scale: 2 }).notNull(),
+  minQuantity: int("minQuantity").default(1).notNull(),
+  isActive: boolean("isActive").default(true).notNull(), // soft-delete only
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VendorSku = typeof vendorSkus.$inferSelect;
+export type InsertVendorSku = typeof vendorSkus.$inferInsert;
+
+// ─── SKU Price History ────────────────────────────────────────────────────────
+
+export const skuPriceHistory = mysqlTable("sku_price_history", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorSkuId: int("vendorSkuId").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  effectiveAt: timestamp("effectiveAt").defaultNow().notNull(),
+  source: mysqlEnum("source", ["import", "manual"]).notNull(),
+  recordedBy: int("recordedBy"), // admin userId
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SkuPriceHistory = typeof skuPriceHistory.$inferSelect;
+export type InsertSkuPriceHistory = typeof skuPriceHistory.$inferInsert;
+
+// ─── Vendor Ratings ───────────────────────────────────────────────────────────
+
+export const vendorRatings = mysqlTable("vendor_ratings", {
+  id: int("id").autoincrement().primaryKey(),
+  vendorId: int("vendorId").notNull(),
+  userId: int("userId").notNull(),
+  groupBuyId: int("groupBuyId").notNull(), // verified-buy anchor
+  qualityScore: tinyint("qualityScore").notNull(),    // 1-5
+  commScore: tinyint("commScore").notNull(),          // 1-5 communication
+  speedScore: tinyint("speedScore").notNull(),        // 1-5
+  packagingScore: tinyint("packagingScore").notNull(), // 1-5
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VendorRating = typeof vendorRatings.$inferSelect;
+export type InsertVendorRating = typeof vendorRatings.$inferInsert;

@@ -55,6 +55,24 @@ import {
   getMembershipRequestByEmail,
   getAllMembershipRequests,
   updateMembershipRequest,
+  // Vendor catalog
+  getAllVendors,
+  getActiveVendors,
+  getVendorById,
+  createVendor,
+  updateVendor,
+  deactivateVendor,
+  getSkusByVendor,
+  getSkuById,
+  createSku,
+  updateSku,
+  deactivateSku,
+  upsertVendorSku,
+  getPriceHistoryBySku,
+  recordManualPriceChange,
+  getVendorRatings,
+  getVendorRatingSummary,
+  upsertVendorRating,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -210,6 +228,7 @@ export const appRouter = router({
           moqTarget: z.string(),
           participantCap: z.number().optional(),
           endDate: z.string().optional(),
+          vendorId: z.number().optional(),
           vendorName: z.string().optional(),
           vendorCountry: z.string().optional(),
           notes: z.string().optional(),
@@ -235,6 +254,7 @@ export const appRouter = router({
           moqTarget: z.string().optional(),
           participantCap: z.number().optional().nullable(),
           endDate: z.string().optional().nullable(),
+          vendorId: z.number().optional().nullable(),
           vendorName: z.string().optional(),
           vendorCountry: z.string().optional(),
           notes: z.string().optional(),
@@ -372,6 +392,7 @@ export const appRouter = router({
       .input(
         z.object({
           groupBuyId: z.number(),
+          vendorSkuId: z.number().optional(),
           name: z.string().min(1),
           description: z.string().optional(),
           pricePerUnit: z.string(),
@@ -389,6 +410,7 @@ export const appRouter = router({
       .input(
         z.object({
           id: z.number(),
+          vendorSkuId: z.number().optional().nullable(),
           name: z.string().optional(),
           description: z.string().optional(),
           pricePerUnit: z.string().optional(),
@@ -1265,8 +1287,224 @@ export const appRouter = router({
       }),
   }),
 
+    // ─── Vendors ──────────────────────────────────────────────────────────────────
+  vendors: router({
+    list: adminProcedure.query(async () => {
+      return getAllVendors();
+    }),
+    listActive: publicProcedure.query(async () => {
+      return getActiveVendors();
+    }),
+    get: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const vendor = await getVendorById(input.id);
+        if (!vendor) throw new TRPCError({ code: "NOT_FOUND" });
+        return vendor;
+      }),
+    create: adminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        country: z.string().length(2),
+        website: z.string().optional(),
+        contactName: z.string().optional(),
+        contactEmail: z.string().email().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await createVendor({
+          name: input.name,
+          country: input.country,
+          website: input.website ?? null,
+          contactName: input.contactName ?? null,
+          contactEmail: input.contactEmail ?? null,
+          notes: input.notes ?? null,
+          isActive: true,
+        });
+        return { id };
+      }),
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        country: z.string().length(2).optional(),
+        website: z.string().nullable().optional(),
+        contactName: z.string().nullable().optional(),
+        contactEmail: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateVendor(id, data);
+        return { success: true };
+      }),
+    deactivate: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deactivateVendor(input.id);
+        return { success: true };
+      }),
+    // ─── SKUs ─────────────────────────────────────────────────────────────────
+    listSkus: adminProcedure
+      .input(z.object({ vendorId: z.number(), includeInactive: z.boolean().optional() }))
+      .query(async ({ input }) => {
+        return getSkusByVendor(input.vendorId, input.includeInactive ?? false);
+      }),
+    getSku: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const sku = await getSkuById(input.id);
+        if (!sku) throw new TRPCError({ code: "NOT_FOUND" });
+        return sku;
+      }),
+    createSku: adminProcedure
+      .input(z.object({
+        vendorId: z.number(),
+        skuCode: z.string().min(1),
+        name: z.string().min(1),
+        productLine: z.string().optional(),
+        description: z.string().optional(),
+        unit: z.string().optional(),
+        currentPrice: z.string(),
+        minQuantity: z.number().int().min(1).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await createSku({
+          vendorId: input.vendorId,
+          skuCode: input.skuCode,
+          name: input.name,
+          productLine: input.productLine ?? null,
+          description: input.description ?? null,
+          unit: input.unit ?? "vial",
+          currentPrice: input.currentPrice as any,
+          minQuantity: input.minQuantity ?? 1,
+          isActive: true,
+        });
+        // Write baseline price history
+        const { skuPriceHistory: sph, vendorSkus: vs } = await import("../drizzle/schema");
+        const db = await (await import("./db")).getDb();
+        if (db) {
+          await db.insert(sph).values({ vendorSkuId: id, price: input.currentPrice as any, source: "manual", recordedBy: ctx.user.id });
+        }
+        return { id };
+      }),
+    updateSku: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        productLine: z.string().nullable().optional(),
+        description: z.string().nullable().optional(),
+        unit: z.string().optional(),
+        currentPrice: z.string().optional(),
+        minQuantity: z.number().int().min(1).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, currentPrice, ...rest } = input;
+        if (currentPrice !== undefined) {
+          await recordManualPriceChange(id, currentPrice, ctx.user.id);
+        } else {
+          await updateSku(id, rest as any);
+        }
+        return { success: true };
+      }),
+    deactivateSku: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deactivateSku(input.id);
+        return { success: true };
+      }),
+    // ─── Price List Import ────────────────────────────────────────────────────
+    importPriceList: adminProcedure
+      .input(z.object({
+        vendorId: z.number(),
+        rows: z.array(z.object({
+          skuCode: z.string().min(1),
+          name: z.string().min(1),
+          currentPrice: z.string(),
+          productLine: z.string().optional(),
+          description: z.string().optional(),
+          unit: z.string().optional(),
+          minQuantity: z.number().int().min(1).optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        let added = 0;
+        let updated = 0;
+        let priceChanges = 0;
+        for (const row of input.rows) {
+          const { priceChanged, skuId } = await upsertVendorSku(
+            {
+              vendorId: input.vendorId,
+              skuCode: row.skuCode,
+              name: row.name,
+              currentPrice: row.currentPrice as any,
+              productLine: row.productLine ?? null,
+              description: row.description ?? null,
+              unit: row.unit ?? "vial",
+              minQuantity: row.minQuantity ?? 1,
+              isActive: true,
+            },
+            ctx.user.id
+          );
+          if (skuId) {
+            const existing = await getSkuById(skuId);
+            if (!existing) added++;
+            else updated++;
+          }
+          if (priceChanged) priceChanges++;
+        }
+        return { added, updated, priceChanges, total: input.rows.length };
+      }),
+    // ─── Price History ────────────────────────────────────────────────────────
+    priceHistory: adminProcedure
+      .input(z.object({ vendorSkuId: z.number() }))
+      .query(async ({ input }) => {
+        return getPriceHistoryBySku(input.vendorSkuId);
+      }),
+    // ─── Ratings ─────────────────────────────────────────────────────────────
+    ratings: adminProcedure
+      .input(z.object({ vendorId: z.number() }))
+      .query(async ({ input }) => {
+        return getVendorRatings(input.vendorId);
+      }),
+    ratingSummary: adminProcedure
+      .input(z.object({ vendorId: z.number() }))
+      .query(async ({ input }) => {
+        return getVendorRatingSummary(input.vendorId);
+      }),
+    rate: adminProcedure
+      .input(z.object({
+        vendorId: z.number(),
+        groupBuyId: z.number(),
+        qualityScore: z.number().int().min(1).max(5),
+        commScore: z.number().int().min(1).max(5),
+        speedScore: z.number().int().min(1).max(5),
+        packagingScore: z.number().int().min(1).max(5),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Verified-buy guard: admin must have managed this buy
+        const buy = await getGroupBuyById(input.groupBuyId);
+        if (!buy) throw new TRPCError({ code: "NOT_FOUND", message: "Buy not found" });
+        if ((buy as any).vendorId !== input.vendorId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This buy was not with this vendor" });
+        }
+        await upsertVendorRating({
+          vendorId: input.vendorId,
+          userId: ctx.user.id,
+          groupBuyId: input.groupBuyId,
+          qualityScore: input.qualityScore,
+          commScore: input.commScore,
+          speedScore: input.speedScore,
+          packagingScore: input.packagingScore,
+          notes: input.notes ?? null,
+        });
+        return { success: true };
+      }),
+  }),
   // ─── Reporting ────────────────────────────────────────────────────────────────
-
   reporting: router({
     buyReport: adminProcedure
       .input(z.object({ groupBuyId: z.number() }))

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Settings2, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Settings2, Copy, Building2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ const EMPTY_FORM = {
   moqTarget: "",
   participantCap: "",
   endDate: "",
+  vendorId: "",
   vendorName: "",
   vendorCountry: "",
   notes: "",
@@ -31,7 +32,38 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM;
 
-function BuyFormFields({ form, set }: { form: FormState; set: (f: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void }) {
+const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
+  US: { name: "United States", flag: "🇺🇸" },
+  CN: { name: "China", flag: "🇨🇳" },
+  VN: { name: "Vietnam", flag: "🇻🇳" },
+  MY: { name: "Malaysia", flag: "🇲🇾" },
+  IN: { name: "India", flag: "🇮🇳" },
+  DE: { name: "Germany", flag: "🇩🇪" },
+  GB: { name: "United Kingdom", flag: "🇬🇧" },
+  CA: { name: "Canada", flag: "🇨🇦" },
+  AU: { name: "Australia", flag: "🇦🇺" },
+  KR: { name: "South Korea", flag: "🇰🇷" },
+};
+
+function BuyFormFields({ form, set, setForm }: {
+  form: FormState;
+  set: (f: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+}) {
+  const { data: vendors } = trpc.vendors.listActive.useQuery();
+
+  const handleVendorSelect = (vendorId: string) => {
+    if (!vendorId) {
+      setForm((prev) => ({ ...prev, vendorId: "", vendorName: "", vendorCountry: "" }));
+      return;
+    }
+    const vendor = vendors?.find((v) => String(v.id) === vendorId);
+    if (vendor) {
+      const countryName = COUNTRY_MAP[vendor.country]?.name ?? vendor.country;
+      setForm((prev) => ({ ...prev, vendorId: vendorId, vendorName: vendor.name, vendorCountry: countryName }));
+    }
+  };
+
   return (
     <div className="space-y-4 py-2">
       <div className="space-y-1.5">
@@ -52,15 +84,42 @@ function BuyFormFields({ form, set }: { form: FormState; set: (f: keyof FormStat
           <Input type="number" value={form.participantCap} onChange={set("participantCap")} placeholder="100" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Vendor Name</Label>
-          <Input value={form.vendorName} onChange={set("vendorName")} placeholder="Supplier Co." />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Vendor Country</Label>
-          <Input value={form.vendorCountry} onChange={set("vendorCountry")} placeholder="China" />
-        </div>
+      {/* Vendor — catalog picker or free text fallback */}
+      <div className="space-y-1.5">
+        <Label className="flex items-center gap-1.5"><Building2 size={13} /> Vendor</Label>
+        {vendors && vendors.length > 0 ? (
+          <div className="space-y-2">
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.vendorId}
+              onChange={(e) => handleVendorSelect(e.target.value)}
+            >
+              <option value="">— Select from catalog (optional) —</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={String(v.id)}>
+                  {COUNTRY_MAP[v.country]?.flag ?? ""} {v.name}
+                </option>
+              ))}
+            </select>
+            {!form.vendorId && (
+              <div className="grid grid-cols-2 gap-3">
+                <Input value={form.vendorName} onChange={set("vendorName")} placeholder="Or type vendor name" />
+                <Input value={form.vendorCountry} onChange={set("vendorCountry")} placeholder="Country" />
+              </div>
+            )}
+            {form.vendorId && (
+              <p className="text-xs text-muted-foreground">
+                {COUNTRY_MAP[vendors.find((v) => String(v.id) === form.vendorId)?.country ?? ""]?.flag ?? ""}{" "}
+                {form.vendorName}, {form.vendorCountry}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Input value={form.vendorName} onChange={set("vendorName")} placeholder="Supplier Co." />
+            <Input value={form.vendorCountry} onChange={set("vendorCountry")} placeholder="China" />
+          </div>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label>Close Date</Label>
@@ -148,6 +207,7 @@ export default function AdminGroupBuys() {
       moqTarget: String(parseFloat(buy.moqTarget as string) || ""),
       participantCap: buy.participantCap ? String(buy.participantCap) : "",
       endDate: buy.endDate ? new Date(buy.endDate).toISOString().split("T")[0] : "",
+      vendorId: buy.vendorId ? String(buy.vendorId) : "",
       vendorName: buy.vendorName ?? "",
       vendorCountry: buy.vendorCountry ?? "",
       notes: buy.notes ?? "",
@@ -265,7 +325,7 @@ export default function AdminGroupBuys() {
           <DialogHeader>
             <DialogTitle>Create Group Buy</DialogTitle>
           </DialogHeader>
-          <BuyFormFields form={form} set={set} />
+          <BuyFormFields form={form} set={set} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={createBuy.isPending}>
@@ -281,7 +341,7 @@ export default function AdminGroupBuys() {
           <DialogHeader>
             <DialogTitle>Edit Group Buy</DialogTitle>
           </DialogHeader>
-          <BuyFormFields form={form} set={set} />
+          <BuyFormFields form={form} set={set} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={updateBuy.isPending}>

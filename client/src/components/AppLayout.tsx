@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import {
   BarChart3,
+  Building2,
   ChevronDown,
   ClipboardList,
   ExternalLink,
@@ -51,6 +52,7 @@ const adminNav: NavItem[] = [
   { label: "Reporting", href: "/admin/reporting", icon: <BarChart3 size={16} />, adminOnly: true },
   { label: "Settings", href: "/admin/settings", icon: <Settings size={16} />, adminOnly: true },
   { label: "Invite Codes", href: "/admin/invite-codes", icon: <KeyRound size={16} />, adminOnly: true },
+  { label: "Vendors", href: "/admin/vendors", icon: <Building2 size={16} />, adminOnly: true },
 ];
 
 interface Props {
