@@ -27,6 +27,7 @@ import { ImportPriceListDialog } from "@/components/ImportPriceListDialog";
 import {
   ArrowLeft,
   Plus,
+  Star,
   Upload,
   TrendingUp,
   TrendingDown,
@@ -82,6 +83,46 @@ const EMPTY_SKU: AddSkuForm = {
   skuCode: "", name: "", productLine: "", description: "", unit: "vial", currentPrice: "", minQuantity: "1",
 };
 
+// ── SkuPurityRow: shows all COAs for a SKU as a purity timeline ────────────
+function SkuPurityRow({ sku }: { sku: any }) {
+  const { data: coas, isLoading } = trpc.vendors.listSkuCoas.useQuery({ vendorSkuId: sku.id });
+  if (isLoading) return <Skeleton className="h-12 w-full rounded-lg" />;
+  if (!coas || coas.length === 0) return null;
+  const avgPurity = coas.filter((c: any) => c.purityPct).reduce((sum: number, c: any, _: number, arr: any[]) =>
+    sum + parseFloat(c.purityPct) / arr.filter((x: any) => x.purityPct).length, 0);
+  return (
+    <div className="glass-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="font-medium text-sm">{sku.name}</p>
+          <p className="text-xs text-muted-foreground font-mono">{sku.skuCode}</p>
+        </div>
+        {avgPurity > 0 && (
+          <Badge className={avgPurity >= 98 ? "bg-green-500/20 text-green-400 border-green-500/30" : avgPurity >= 95 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"}>
+            avg {avgPurity.toFixed(1)}%
+          </Badge>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {coas.map((c: any) => (
+          <div key={c.id} className="flex items-center gap-3 text-xs">
+            <span className="text-muted-foreground w-24 shrink-0">{c.testedAt ? new Date(c.testedAt).toLocaleDateString() : "No date"}</span>
+            {c.purityPct ? (
+              <Badge variant="outline" className="text-xs px-1.5 py-0">{parseFloat(c.purityPct).toFixed(1)}% purity</Badge>
+            ) : (
+              <span className="text-muted-foreground italic">No purity recorded</span>
+            )}
+            {c.labName && <span className="text-muted-foreground">{c.labName}</span>}
+            <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className="ml-auto text-accent hover:underline flex items-center gap-1">
+              <ExternalLink size={10} /> View
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminVendorDetail() {
   const params = useParams<{ id: string }>();
   const vendorId = parseInt(params.id ?? "0");
@@ -113,6 +154,9 @@ export default function AdminVendorDetail() {
     { vendorSkuId: selectedSkuId! },
     { enabled: !!selectedSkuId && showPriceHistory }
   );
+
+  const { data: ratingSummary } = trpc.vendors.ratingSummary.useQuery({ vendorId });
+  const { data: ratingsList } = trpc.vendors.ratings.useQuery({ vendorId });
 
   const createSkuMutation = trpc.vendors.createSku.useMutation({
     onSuccess: () => {
@@ -291,6 +335,8 @@ export default function AdminVendorDetail() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="catalog">SKU Catalog</TabsTrigger>
+            <TabsTrigger value="ratings">Ratings</TabsTrigger>
+            <TabsTrigger value="purity">Purity History</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
@@ -493,6 +539,81 @@ export default function AdminVendorDetail() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* Ratings Tab */}
+        <TabsContent value="ratings" className="mt-4">
+          <div className="space-y-4">
+            {/* Rating Summary Cards */}
+            {ratingSummary && ratingSummary.count > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {([
+                    { label: "Product Quality", val: ratingSummary.quality },
+                    { label: "Communication", val: ratingSummary.communication },
+                    { label: "Speed", val: ratingSummary.speed },
+                    { label: "Packaging", val: ratingSummary.packaging },
+                  ] as const).map(({ label, val }) => (
+                    <div key={label} className="glass-card p-4 text-center">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="text-2xl font-bold tabular-nums mt-1">
+                        {val ? parseFloat(String(val)).toFixed(1) : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">/ 5</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Based on {ratingSummary.count} rating{ratingSummary.count !== 1 ? "s" : ""}
+                </p>
+                {/* Individual Ratings */}
+                <div className="space-y-2">
+                  {ratingsList?.map((r: any) => (
+                    <div key={r.id} className="glass-card p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                            <span className="font-medium text-foreground">{r.user?.name ?? r.user?.email ?? `User #${r.userId}`}</span>
+                            {r.groupBuyId && <span>· Buy #{r.groupBuyId}</span>}
+                            <span>· {new Date(r.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex gap-4 text-xs">
+                            <span>Quality: <strong>{r.qualityScore}/5</strong></span>
+                            <span>Comm: <strong>{r.commScore}/5</strong></span>
+                            <span>Speed: <strong>{r.speedScore}/5</strong></span>
+                            <span>Packaging: <strong>{r.packagingScore}/5</strong></span>
+                          </div>
+                          {r.notes && <p className="text-xs text-muted-foreground mt-1 italic">{r.notes}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="glass-card p-8 text-center">
+                <Star size={28} className="mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-muted-foreground text-sm">No ratings yet for this vendor.</p>
+                <p className="text-xs text-muted-foreground mt-1">Rate a vendor from a completed buy's detail page.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Purity History Tab */}
+        <TabsContent value="purity" className="mt-4">
+          <div className="space-y-3">
+            {(skus ?? []).filter((s) => s.isActive).length === 0 ? (
+              <div className="glass-card p-8 text-center">
+                <FlaskConical size={28} className="mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-muted-foreground text-sm">No active SKUs with COA data yet.</p>
+              </div>
+            ) : (
+              (skus ?? []).filter((s) => s.isActive).map((sku) => (
+                <SkuPurityRow key={sku.id} sku={sku} />
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="notes" className="mt-4">

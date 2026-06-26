@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle, ChevronLeft, Download, FileDown, FlaskConical, MessageSquare, Package, Pencil, Plus, Save, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { CheckCircle, ChevronLeft, Download, FileDown, FlaskConical, MessageSquare, Package, Pencil, Plus, Save, ShieldCheck, Star, Trash2, Upload, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -218,6 +218,15 @@ export default function AdminBuyDetail() {
     }
   };
 
+  // Rate Vendor dialog
+  const [showRateVendor, setShowRateVendor] = useState(false);
+  const EMPTY_RATING = { qualityScore: 5, commScore: 5, speedScore: 5, packagingScore: 5, notes: "" };
+  const [ratingForm, setRatingForm] = useState(EMPTY_RATING);
+  const rateVendorMutation = trpc.vendors.rate.useMutation({
+    onSuccess: () => { toast.success("Vendor rated — thank you!"); setShowRateVendor(false); setRatingForm(EMPTY_RATING); },
+    onError: (e) => toast.error(e.message),
+  });
+
   // Edit product dialog
   const [editProductDialog, setEditProductDialog] = useState(false);
   const [editProductId, setEditProductId] = useState<number | null>(null);
@@ -297,9 +306,34 @@ export default function AdminBuyDetail() {
               <StatusBadge status={buy.status} type="buy" />
             </div>
             {buy.description && <p className="text-muted-foreground text-sm">{buy.description}</p>}
+            {(buy as any).vendorName && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>Vendor:</span>
+                {(buy as any).vendorId ? (
+                  <Link href={`/admin/vendors/${(buy as any).vendorId}`} className="text-accent hover:underline font-medium">
+                    {(buy as any).vendorName}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{(buy as any).vendorName}</span>
+                )}
+                {(buy as any).vendorCountry && (
+                  <span className="text-muted-foreground/60">({(buy as any).vendorCountry})</span>
+                )}
+              </div>
+            )}
           </div>
-          {/* Status Transition */}
+          {/* Status Transition + Rate Vendor */}
           <div className="flex items-center gap-2 shrink-0">
+            {buy.status === "Complete" && (buy as any).vendorId && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs border-accent/40 text-accent hover:bg-accent/10"
+                onClick={() => setShowRateVendor(true)}
+              >
+                <Star size={12} /> Rate Vendor
+              </Button>
+            )}
             <Select
               value={buy.status}
               onValueChange={(v) => updateStatus.mutate({ id: buyId, status: v as BuyStatus })}
@@ -850,6 +884,73 @@ export default function AdminBuyDetail() {
               disabled={createTest.isPending}
             >
               Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rate Vendor Dialog */}
+      <Dialog open={showRateVendor} onOpenChange={setShowRateVendor}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star size={16} className="text-accent" /> Rate Vendor
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">Rating <span className="font-medium text-foreground">{(buy as any).vendorName}</span> for this buy. Scores are 1–5.</p>
+            {([
+              { key: "qualityScore", label: "Product Quality" },
+              { key: "commScore", label: "Communication" },
+              { key: "speedScore", label: "Speed / Lead Time" },
+              { key: "packagingScore", label: "Packaging" },
+            ] as const).map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <label className="text-sm font-medium w-36">{label}</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setRatingForm((prev) => ({ ...prev, [key]: n }))}
+                      className={`w-8 h-8 rounded text-sm font-bold transition-colors ${
+                        ratingForm[key] >= n
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes (optional)</label>
+              <Textarea
+                className="mt-1 text-sm"
+                rows={3}
+                placeholder="Any notes about this vendor for this buy..."
+                value={ratingForm.notes}
+                onChange={(e) => setRatingForm((prev) => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRateVendor(false)}>Cancel</Button>
+            <Button
+              disabled={rateVendorMutation.isPending}
+              onClick={() => rateVendorMutation.mutate({
+                vendorId: (buy as any).vendorId,
+                groupBuyId: buyId,
+                qualityScore: ratingForm.qualityScore,
+                commScore: ratingForm.commScore,
+                speedScore: ratingForm.speedScore,
+                packagingScore: ratingForm.packagingScore,
+                notes: ratingForm.notes || undefined,
+              })}
+            >
+              {rateVendorMutation.isPending ? "Saving..." : "Submit Rating"}
             </Button>
           </DialogFooter>
         </DialogContent>
