@@ -4,7 +4,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Trophy, TrendingDown, ExternalLink } from "lucide-react";
+import { Search, Trophy, TrendingDown, ExternalLink, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -223,6 +224,57 @@ function CompoundTable({ group, bestPrices }: { group: CompoundGroup; bestPrices
   );
 }
 
+// ─── CSV Export ──────────────────────────────────────────────────────────────
+
+function exportComparisonCsv(data: SkuResult[], query: string) {
+  const headers = [
+    "Compound",
+    "Vendor",
+    "Country",
+    "SKU Code",
+    "Unit",
+    "List Price",
+    "Effective @ Qty 1",
+    "Effective @ Qty 10",
+    "Effective @ Qty 20",
+    "Effective @ Qty 50",
+    "Negotiated Discount %",
+    "Savings % (vs List)",
+  ];
+
+  const rows = [...data].sort((a, b) =>
+    a.name.localeCompare(b.name) || a.vendorName.localeCompare(b.vendorName)
+  );
+
+  const csvRows = rows.map((r) => {
+    const listPrice = parseFloat(r.currentPrice);
+    const savings = listPrice > 0 ? ((listPrice - r.ep1) / listPrice) * 100 : 0;
+    return [
+      r.name,
+      r.vendorName,
+      r.vendorCountry,
+      r.skuCode,
+      r.unit,
+      listPrice.toFixed(2),
+      r.ep1.toFixed(2),
+      r.ep10.toFixed(2),
+      r.ep20.toFixed(2),
+      r.ep50.toFixed(2),
+      r.negotiatedDiscountPct ? parseFloat(r.negotiatedDiscountPct).toFixed(1) : "0",
+      savings.toFixed(1),
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+  });
+
+  const csv = [headers.join(","), ...csvRows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `price-comparison-${query.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PriceFinder() {
@@ -305,13 +357,22 @@ export default function PriceFinder() {
         {/* Results */}
         {!isLoading && !isFetching && hasResults && (
           <>
-            <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-              <span>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <span className="text-sm text-muted-foreground">
                 Found <span className="text-foreground font-medium">{data!.length}</span> SKU
                 {data!.length !== 1 ? "s" : ""} across{" "}
                 <span className="text-foreground font-medium">{groups.length}</span> compound
                 {groups.length !== 1 ? "s" : ""}
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => exportComparisonCsv(data!, query)}
+              >
+                <Download size={14} />
+                Export CSV
+              </Button>
             </div>
             {groups.map((group) => (
               <CompoundTable key={group.name} group={group} bestPrices={getBestPrices(group)} />

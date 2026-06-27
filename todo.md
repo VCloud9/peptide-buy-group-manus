@@ -212,3 +212,10 @@
 - [x] Add vitest test for searchSkus procedure
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 16 — CSV Exports
+
+- [x] Price Finder: Add "Export CSV" button that downloads current search results (compound, vendor, list price, ep1/ep10/ep20/ep50, savings %)
+- [x] Buy Detail: Add "Export to Vendor" button in admin Products tab that generates a vendor purchase order CSV (product name, SKU code, total qty ordered, unit price, line total)
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

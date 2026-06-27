@@ -391,6 +391,55 @@ export default function AdminBuyDetail() {
           {/* ── Products Tab ─────────────────────────────────────────────── */}
           <TabsContent value="products" className="space-y-3 mt-4">
             <div className="flex justify-end gap-2">
+              {products.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    // Aggregate total qty ordered per product across all paid/committed orders
+                    const qtyByProduct = new Map<number, number>();
+                    (orders as any[] ?? []).forEach((order: any) => {
+                      (order.items ?? []).forEach((item: any) => {
+                        qtyByProduct.set(
+                          item.productId,
+                          (qtyByProduct.get(item.productId) ?? 0) + (item.quantity ?? 0)
+                        );
+                      });
+                    });
+
+                    const rows: string[][] = [
+                      ["Product Name", "SKU Code", "Unit", "Total Qty Ordered", "Unit Price", "Line Total"],
+                    ];
+                    products.forEach((p) => {
+                      const totalQty = qtyByProduct.get(p.id) ?? 0;
+                      const unitPrice = parseFloat(p.pricePerUnit as string);
+                      const lineTotal = unitPrice * totalQty;
+                      // Find SKU code from vendorSkus if available
+                      const skuCode = vendorSkus?.find((s) => s.id === (p as any).vendorSkuId)?.skuCode ?? "";
+                      rows.push([
+                        p.name,
+                        skuCode,
+                        p.unit,
+                        String(totalQty),
+                        unitPrice.toFixed(2),
+                        lineTotal.toFixed(2),
+                      ]);
+                    });
+
+                    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `vendor-order-${buy.title.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <Download size={13} /> Export to Vendor
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setImportDialog(true)}>
                 <Upload size={13} /> Import CSV / XLSX
               </Button>
