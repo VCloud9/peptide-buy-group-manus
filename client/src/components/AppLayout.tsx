@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Search,
   Settings,
   ShoppingBag,
   Users,
@@ -53,6 +54,7 @@ const adminNav: NavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: <Settings size={16} />, adminOnly: true },
   { label: "Invite Codes", href: "/admin/invite-codes", icon: <KeyRound size={16} />, adminOnly: true },
   { label: "Vendors", href: "/admin/vendors", icon: <Building2 size={16} />, adminOnly: true },
+  { label: "Price Finder", href: "/admin/price-finder", icon: <Search size={16} />, adminOnly: true },
 ];
 
 interface Props {

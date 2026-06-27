@@ -921,3 +921,97 @@ export function calcEffectivePrice(
   const savingsPct = base > 0 ? ((base - effectivePrice) / base) * 100 : 0;
   return { listPrice: base, tierPrice, effectivePrice: Math.round(effectivePrice * 100) / 100, savingsPct: Math.round(savingsPct * 10) / 10 };
 }
+
+/**
+ * Cross-vendor price search: fuzzy-match compound name across all active vendor SKUs.
+ * Returns an array of result rows, each containing the SKU info, vendor info, all tiers,
+ * and effective prices at qty=1, qty=10, qty=20, qty=50.
+ */
+export async function searchSkusAcrossVendors(query: string): Promise<
+  Array<{
+    skuId: number;
+    skuCode: string;
+    name: string;
+    unit: string;
+    productLine: string | null;
+    currentPrice: string;
+    vendorId: number;
+    vendorName: string;
+    vendorCountry: string;
+    negotiatedDiscountPct: string | null;
+    tiers: Array<{ minQty: number; price: string }>;
+    ep1: number;   // effective price @ qty 1
+    ep10: number;  // effective price @ qty 10
+    ep20: number;  // effective price @ qty 20
+    ep50: number;  // effective price @ qty 50
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const term = `%${query.trim()}%`;
+  const rows = await db
+    .select({
+      skuId: vendorSkus.id,
+      skuCode: vendorSkus.skuCode,
+      name: vendorSkus.name,
+      unit: vendorSkus.unit,
+      productLine: vendorSkus.productLine,
+      currentPrice: vendorSkus.currentPrice,
+      vendorId: vendors.id,
+      vendorName: vendors.name,
+      vendorCountry: vendors.country,
+      negotiatedDiscountPct: vendors.negotiatedDiscountPct,
+    })
+    .from(vendorSkus)
+    .innerJoin(vendors, eq(vendorSkus.vendorId, vendors.id))
+    .where(
+      and(
+        eq(vendorSkus.isActive, true),
+        eq(vendors.isActive, true),
+        sql`LOWER(${vendorSkus.name}) LIKE LOWER(${term})`
+      )
+    )
+    .orderBy(vendorSkus.name, vendors.name);
+
+  // Fetch tiers for all returned SKUs in one query
+  const skuIds = rows.map((r) => r.skuId);
+  let allTiers: VendorSkuTier[] = [];
+  if (skuIds.length > 0) {
+    allTiers = await db
+      .select()
+      .from(vendorSkuTiers)
+      .where(sql`${vendorSkuTiers.vendorSkuId} IN (${sql.join(skuIds.map((id) => sql`${id}`), sql`, `)})`)
+      .orderBy(vendorSkuTiers.vendorSkuId, vendorSkuTiers.minQty);
+  }
+
+  const tiersBySkuId = new Map<number, VendorSkuTier[]>();
+  for (const tier of allTiers) {
+    const list = tiersBySkuId.get(tier.vendorSkuId) ?? [];
+    list.push(tier);
+    tiersBySkuId.set(tier.vendorSkuId, list);
+  }
+
+  return rows.map((row) => {
+    const tiers = tiersBySkuId.get(row.skuId) ?? [];
+    const disc = row.negotiatedDiscountPct as string | null;
+    const price = row.currentPrice as string;
+    return {
+      skuId: row.skuId,
+      skuCode: row.skuCode,
+      name: row.name,
+      unit: row.unit ?? "vial",
+      productLine: row.productLine,
+      currentPrice: price,
+      vendorId: row.vendorId,
+      vendorName: row.vendorName,
+      vendorCountry: row.vendorCountry,
+      negotiatedDiscountPct: disc,
+      tiers: tiers.map((t) => ({ minQty: t.minQty, price: t.price as string })),
+      ep1:  calcEffectivePrice(price, tiers, 1,  disc).effectivePrice,
+      ep10: calcEffectivePrice(price, tiers, 10, disc).effectivePrice,
+      ep20: calcEffectivePrice(price, tiers, 20, disc).effectivePrice,
+      ep50: calcEffectivePrice(price, tiers, 50, disc).effectivePrice,
+    };
+  });
+}

@@ -202,3 +202,13 @@
 - [ ] Admin UI: effective price shown in buy catalog picker
 - [ ] Tests: tier upsert and effective price calculation
 - [ ] Checkpoint + GitHub push
+
+## Round 15 — Cross-Vendor Price Finder
+
+- [x] Add `vendors.searchSkus` tRPC procedure: fuzzy search across vendor_skus.name, return all matching SKUs grouped by canonical compound name with all vendor prices + tier prices + effective price after negotiatedDiscountPct
+- [x] Build `/admin/price-finder` page: search input, compound results table, per-vendor tier price columns, effective price, Best Price badge
+- [x] Add "Price Finder" nav link to admin sidebar in AppLayout.tsx
+- [x] Register `/admin/price-finder` route in App.tsx
+- [x] Add vitest test for searchSkus procedure
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

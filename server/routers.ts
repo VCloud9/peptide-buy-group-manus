@@ -80,6 +80,7 @@ import {
   getTiersBySkuId,
   upsertSkuTiers,
   calcEffectivePrice,
+  searchSkusAcrossVendors,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -1598,6 +1599,13 @@ export const appRouter = router({
       .input(z.object({ vendorSkuId: z.number() }))
       .query(async ({ input }) => {
         return getLatestSkuPurity(input.vendorSkuId);
+      }),
+
+    // ── Price Finder ─────────────────────────────────────────────────────────
+    searchSkus: adminProcedure
+      .input(z.object({ query: z.string().min(1) }))
+      .query(async ({ input }) => {
+        return searchSkusAcrossVendors(input.query);
       }),
   }),
   // ─── Reporting ────────────────────────────────────────────────────────────────
