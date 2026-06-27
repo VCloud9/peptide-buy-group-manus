@@ -1412,6 +1412,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         name: z.string().min(1).optional(),
+        alias: z.string().max(128).nullable().optional(),
         productLine: z.string().nullable().optional(),
         description: z.string().nullable().optional(),
         unit: z.string().optional(),

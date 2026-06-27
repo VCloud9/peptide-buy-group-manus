@@ -932,6 +932,7 @@ export async function searchSkusAcrossVendors(query: string): Promise<
     skuId: number;
     skuCode: string;
     name: string;
+    alias: string | null;
     unit: string;
     productLine: string | null;
     currentPrice: string;
@@ -955,6 +956,7 @@ export async function searchSkusAcrossVendors(query: string): Promise<
       skuId: vendorSkus.id,
       skuCode: vendorSkus.skuCode,
       name: vendorSkus.name,
+      alias: vendorSkus.alias,
       unit: vendorSkus.unit,
       productLine: vendorSkus.productLine,
       currentPrice: vendorSkus.currentPrice,
@@ -969,7 +971,12 @@ export async function searchSkusAcrossVendors(query: string): Promise<
       and(
         eq(vendorSkus.isActive, true),
         eq(vendors.isActive, true),
-        sql`LOWER(${vendorSkus.name}) LIKE LOWER(${term})`
+        // Search across name, alias (friendly nickname), and skuCode
+        sql`(
+          LOWER(${vendorSkus.name}) LIKE LOWER(${term})
+          OR LOWER(COALESCE(${vendorSkus.alias}, '')) LIKE LOWER(${term})
+          OR LOWER(${vendorSkus.skuCode}) LIKE LOWER(${term})
+        )`
       )
     )
     .orderBy(vendorSkus.name, vendors.name);
@@ -1000,6 +1007,7 @@ export async function searchSkusAcrossVendors(query: string): Promise<
       skuId: row.skuId,
       skuCode: row.skuCode,
       name: row.name,
+      alias: row.alias ?? null,
       unit: row.unit ?? "vial",
       productLine: row.productLine,
       currentPrice: price,

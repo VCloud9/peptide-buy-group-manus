@@ -15,6 +15,7 @@ interface SkuResult {
   skuId: number;
   skuCode: string;
   name: string;
+  alias: string | null;
   unit: string;
   productLine: string | null;
   currentPrice: string;
@@ -30,7 +31,8 @@ interface SkuResult {
 }
 
 interface CompoundGroup {
-  name: string;
+  name: string;        // canonical compound name (from first row)
+  alias: string | null; // friendly nickname e.g. GLOW, KLOW, Wolverine
   rows: SkuResult[];
   bestVendorId: number; // vendorId with lowest ep1
 }
@@ -51,10 +53,12 @@ function countryFlag(iso: string): string {
 }
 
 function groupByCompound(rows: SkuResult[]): CompoundGroup[] {
-  // Group by normalized compound name (lowercase, trimmed)
+  // Group by alias (if set) or normalized compound name (lowercase, trimmed)
+  // This means GLOW, KLOW, Wolverine each become their own group
   const map = new Map<string, SkuResult[]>();
   for (const row of rows) {
-    const key = row.name.trim().toLowerCase();
+    // If the row has an alias, group by alias; otherwise group by normalized name
+    const key = row.alias ? row.alias.trim().toLowerCase() : row.name.trim().toLowerCase();
     const list = map.get(key) ?? [];
     list.push(row);
     map.set(key, list);
@@ -65,12 +69,19 @@ function groupByCompound(rows: SkuResult[]): CompoundGroup[] {
     // Sort by ep1 ascending so cheapest is first
     const sorted = [...list].sort((a, b) => a.ep1 - b.ep1);
     const bestVendorId = sorted[0].vendorId;
-    // Use the original casing from the first result
-    groups.push({ name: list[0].name, rows: sorted, bestVendorId });
+    // Alias from first row (all rows in a group share the same alias key)
+    const alias = list[0].alias ?? null;
+    groups.push({ name: list[0].name, alias, rows: sorted, bestVendorId });
   });
 
-  // Sort groups alphabetically by compound name
-  return groups.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort groups: aliased groups first (alphabetically), then unaliased groups
+  return groups.sort((a, b) => {
+    if (a.alias && !b.alias) return -1;
+    if (!a.alias && b.alias) return 1;
+    const aKey = a.alias ?? a.name;
+    const bKey = b.alias ?? b.name;
+    return aKey.localeCompare(bKey);
+  });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -118,14 +129,28 @@ function CompoundTable({ group, bestPrices }: { group: CompoundGroup; bestPrices
   return (
     <div className="rounded-lg border border-border overflow-hidden mb-4">
       {/* Compound header */}
-      <div className="bg-secondary/40 px-4 py-2.5 flex items-center gap-2">
-        <span className="font-semibold text-sm text-foreground">{group.name}</span>
+      <div className="bg-secondary/40 px-4 py-2.5 flex items-center gap-2 flex-wrap">
+        {/* Show alias as primary title, full compound name as subtitle */}
+        {group.alias ? (
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm text-primary tracking-wide uppercase">{group.alias}</span>
+            <span className="text-xs text-muted-foreground font-normal">{group.name}</span>
+          </div>
+        ) : (
+          <span className="font-semibold text-sm text-foreground">{group.name}</span>
+        )}
         <Badge variant="outline" className="text-xs text-muted-foreground">
           {group.rows.length} vendor{group.rows.length !== 1 ? "s" : ""}
         </Badge>
         {group.rows[0]?.unit && (
           <Badge variant="outline" className="text-xs text-muted-foreground">
             per {group.rows[0].unit}
+          </Badge>
+        )}
+        {/* SKU code chip */}
+        {group.rows[0]?.skuCode && (
+          <Badge variant="outline" className="text-xs font-mono text-muted-foreground">
+            {group.rows[0].skuCode}
           </Badge>
         )}
       </div>

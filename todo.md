@@ -219,3 +219,14 @@
 - [x] Buy Detail: Add "Export to Vendor" button in admin Products tab that generates a vendor purchase order CSV (product name, SKU code, total qty ordered, unit price, line total)
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 17 — SKU Alias / Blend Nickname Support
+
+- [x] Add `alias` (nullable varchar 128) column to vendor_skus schema
+- [x] Generate and apply migration SQL for alias column
+- [x] Update searchSkusAcrossVendors to also LIKE-match on alias and skuCode
+- [x] Return alias in searchSkus results; use alias as group key when present
+- [x] Price Finder UI: show alias as primary name badge, full compound name as subtitle
+- [x] Vendor Detail SKU catalog: add alias field to SKU edit dialog
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

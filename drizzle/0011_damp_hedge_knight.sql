@@ -1,0 +1,1 @@
+ALTER TABLE `vendor_skus` ADD `alias` varchar(128);

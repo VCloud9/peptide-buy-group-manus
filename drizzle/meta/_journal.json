@@ -78,6 +78,13 @@
       "when": 1782513769110,
       "tag": "0010_absent_proudstar",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1782529936407,
+      "tag": "0011_damp_hedge_knight",
+      "breakpoints": true
     }
   ]
 }

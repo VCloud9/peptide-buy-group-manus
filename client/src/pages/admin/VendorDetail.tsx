@@ -141,6 +141,9 @@ export default function AdminVendorDetail() {
   const [showCoaDialog, setShowCoaDialog] = useState(false);
   const [expandedCoaSkuId, setExpandedCoaSkuId] = useState<number | null>(null);
   const coaFileRef = useRef<HTMLInputElement>(null);
+  const [showEditAlias, setShowEditAlias] = useState(false);
+  const [editAliasSkuId, setEditAliasSkuId] = useState<number | null>(null);
+  const [aliasValue, setAliasValue] = useState("");
   const [coaForm, setCoaForm] = useState({ labName: "", purityPct: "", testedAt: "", notes: "", file: null as File | null });
 
   const utils = trpc.useUtils();
@@ -170,10 +173,12 @@ export default function AdminVendorDetail() {
 
   const updateSkuMutation = trpc.vendors.updateSku.useMutation({
     onSuccess: () => {
-      toast.success("Price updated.");
+      toast.success("Saved.");
       utils.vendors.listSkus.invalidate({ vendorId });
       setShowEditPrice(false);
       setNewPrice("");
+      setShowEditAlias(false);
+      setAliasValue("");
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
@@ -410,7 +415,14 @@ export default function AdminVendorDetail() {
                           <TableRow className={!sku.isActive ? "opacity-50" : ""}>
                             <TableCell className="font-mono text-xs">{sku.skuCode}</TableCell>
                             <TableCell>
-                              <div className="font-medium text-sm">{sku.name}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="font-medium text-sm">{sku.name}</div>
+                                {(sku as any).alias && (
+                                  <span className="text-xs font-bold text-primary uppercase tracking-wide bg-primary/10 px-1.5 py-0.5 rounded">
+                                    {(sku as any).alias}
+                                  </span>
+                                )}
+                              </div>
                               {sku.description && (
                                 <div className="text-xs text-muted-foreground truncate max-w-[200px]">{sku.description}</div>
                               )}
@@ -463,6 +475,18 @@ export default function AdminVendorDetail() {
                                   }}
                                 >
                                   Edit Price
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => {
+                                    setEditAliasSkuId(sku.id);
+                                    setAliasValue((sku as any).alias ?? "");
+                                    setShowEditAlias(true);
+                                  }}
+                                >
+                                  Alias
                                 </Button>
                                 {sku.isActive && (
                                   <Button
@@ -780,6 +804,44 @@ export default function AdminVendorDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPriceHistory(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Alias Dialog */}
+      <Dialog open={showEditAlias} onOpenChange={(open) => { setShowEditAlias(open); if (!open) { setAliasValue(""); setEditAliasSkuId(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set Alias / Nickname</DialogTitle>
+            <DialogDescription>
+              {skus?.find((s) => s.id === editAliasSkuId)?.name} — give this SKU a friendly name (e.g. GLOW, KLOW, Wolverine). Leave blank to remove the alias. The alias is searchable in Price Finder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alias / Nickname</label>
+            <Input
+              value={aliasValue}
+              onChange={(e) => setAliasValue(e.target.value)}
+              placeholder="e.g. GLOW, KLOW, Wolverine"
+              maxLength={128}
+            />
+            <p className="text-xs text-muted-foreground">This will appear as the primary name in Price Finder results.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditAlias(false)}>Cancel</Button>
+            <Button
+              disabled={updateSkuMutation.isPending}
+              onClick={() => {
+                if (editAliasSkuId) {
+                  updateSkuMutation.mutate({
+                    id: editAliasSkuId,
+                    alias: aliasValue.trim() || null,
+                  });
+                }
+              }}
+            >
+              {updateSkuMutation.isPending ? "Saving..." : "Save Alias"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -304,6 +304,7 @@ export const vendorSkus = mysqlTable("vendor_skus", {
   vendorId: int("vendorId").notNull(),
   skuCode: varchar("skuCode", { length: 128 }).notNull(), // vendor's own item code; upsert key
   name: varchar("name", { length: 255 }).notNull(),
+  alias: varchar("alias", { length: 128 }),              // friendly nickname e.g. GLOW, KLOW, Wolverine
   productLine: varchar("productLine", { length: 128 }),  // sub-brand / category grouping
   description: text("description"),
   unit: varchar("unit", { length: 64 }).default("vial").notNull(),
