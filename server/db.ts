@@ -1023,3 +1023,38 @@ export async function searchSkusAcrossVendors(query: string): Promise<
     };
   });
 }
+
+/**
+ * Returns all active SKUs for a vendor, each with their full tier list.
+ * Used by the Add Product dialog to show a searchable catalog with live tier pricing.
+ */
+export async function getSkusWithTiersForVendor(vendorId: number): Promise<
+  Array<typeof vendorSkus.$inferSelect & { tiers: Array<{ minQty: number; price: string }> }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const skus = await db
+    .select()
+    .from(vendorSkus)
+    .where(and(eq(vendorSkus.vendorId, vendorId), eq(vendorSkus.isActive, true)))
+    .orderBy(vendorSkus.productLine, vendorSkus.name);
+
+  if (skus.length === 0) return skus.map((s) => ({ ...s, tiers: [] }));
+
+  const skuIds = skus.map((s) => s.id);
+  const allTiers = await db
+    .select()
+    .from(vendorSkuTiers)
+    .where(sql`${vendorSkuTiers.vendorSkuId} IN (${sql.join(skuIds.map((id) => sql`${id}`), sql`, `)})`)
+    .orderBy(vendorSkuTiers.vendorSkuId, vendorSkuTiers.minQty);
+
+  const tierMap = new Map<number, Array<{ minQty: number; price: string }>>();
+  for (const t of allTiers) {
+    const list = tierMap.get(t.vendorSkuId) ?? [];
+    list.push({ minQty: t.minQty, price: t.price as string });
+    tierMap.set(t.vendorSkuId, list);
+  }
+
+  return skus.map((s) => ({ ...s, tiers: tierMap.get(s.id) ?? [] }));
+}

@@ -196,26 +196,60 @@ export default function AdminBuyDetail() {
   const setP = (f: keyof typeof EMPTY_PRODUCT) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProductForm((prev) => ({ ...prev, [f]: e.target.value }));
 
-  // Catalog picker — load SKUs for the buy's vendor (if linked)
+  // Catalog picker — load SKUs with tiers for the buy's vendor (if linked)
   const buyVendorId = (data?.buy as any)?.vendorId ?? null;
-  const { data: vendorSkus } = trpc.vendors.listSkus.useQuery(
+  const { data: vendorSkus } = trpc.vendors.listSkusWithTiers.useQuery(
     { vendorId: buyVendorId! },
     { enabled: !!buyVendorId }
   );
+  type SkuWithTiers = {
+    id: number; name: string; alias: string | null; skuCode: string; unit: string;
+    currentPrice: string; description: string | null; productLine: string | null;
+    tiers: Array<{ minQty: number; price: string }>;
+  };
+  const [selectedSkuForProduct, setSelectedSkuForProduct] = useState<SkuWithTiers | null>(null);
+
+  // Compute tier-aware price for the currently selected SKU + qty
+  const getTierPrice = (sku: SkuWithTiers, qty: number): string => {
+    const tiers = sku.tiers ?? [];
+    const applicable = tiers.filter((t) => qty >= t.minQty).sort((a, b) => b.minQty - a.minQty);
+    const tierPrice = applicable.length > 0 ? parseFloat(applicable[0].price) : parseFloat(sku.currentPrice as string);
+    return tierPrice.toFixed(2);
+  };
+
   const handleCatalogSelect = (skuId: string) => {
-    if (!skuId) { setProductForm(EMPTY_PRODUCT); return; }
-    const sku = vendorSkus?.find((s) => String(s.id) === skuId);
+    if (!skuId) {
+      setSelectedSkuForProduct(null);
+      setProductForm(EMPTY_PRODUCT);
+      return;
+    }
+    const sku = vendorSkus?.find((s) => String(s.id) === skuId) ?? null;
+    setSelectedSkuForProduct(sku);
     if (sku) {
+      const qty = 1;
       setProductForm({
         vendorSkuId: skuId,
-        name: sku.name,
+        name: (sku as any).alias ? `${(sku as any).alias} — ${sku.name}` : sku.name,
         description: sku.description ?? "",
-        pricePerUnit: parseFloat(sku.currentPrice as string).toFixed(2),
+        pricePerUnit: getTierPrice(sku, qty),
         unit: sku.unit ?? "vial",
-        minQuantity: "1",
+        minQuantity: String(qty),
         maxQuantity: "",
       });
     }
+  };
+
+  // When qty changes and a SKU is selected, recalculate tier price
+  const handleProductQtyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const qty = parseInt(e.target.value) || 1;
+    setProductForm((prev) => {
+      if (!selectedSkuForProduct) return { ...prev, minQuantity: e.target.value };
+      return {
+        ...prev,
+        minQuantity: e.target.value,
+        pricePerUnit: getTierPrice(selectedSkuForProduct, qty),
+      };
+    });
   };
 
   // Rate Vendor dialog
@@ -712,31 +746,53 @@ export default function AdminBuyDetail() {
       />
 
       {/* Product Dialog */}
-      <Dialog open={productDialog} onOpenChange={(v) => { setProductDialog(v); if (!v) setProductForm(EMPTY_PRODUCT); }}>
+      <Dialog open={productDialog} onOpenChange={(v) => { setProductDialog(v); if (!v) { setProductForm(EMPTY_PRODUCT); setSelectedSkuForProduct(null); } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Product</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Product</DialogTitle>
+            {buyVendorId && vendorSkus && vendorSkus.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">Select a SKU from the vendor catalog to auto-fill pricing.</p>
+            )}
+          </DialogHeader>
           <div className="space-y-3 py-2">
-            {/* Catalog picker — only shown when buy has a linked vendor with SKUs */}
-            {vendorSkus && vendorSkus.length > 0 && (
+            {/* Catalog picker — shown when buy has a linked vendor */}
+            {vendorSkus && vendorSkus.length > 0 ? (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Quick-fill from vendor catalog</Label>
+                <Label>Vendor Catalog SKU *</Label>
                 <select
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={productForm.vendorSkuId}
                   onChange={(e) => handleCatalogSelect(e.target.value)}
                 >
-                  <option value="">— Select a SKU to auto-fill —</option>
+                  <option value="">— Choose a SKU from catalog —</option>
                   {vendorSkus.map((s) => (
                     <option key={s.id} value={String(s.id)}>
-                      {s.name} — ${parseFloat(s.currentPrice as string).toFixed(2)}/{s.unit}
+                      {(s as any).alias ? `${(s as any).alias} — ` : ""}{s.name} ({s.skuCode}) — ${parseFloat(s.currentPrice as string).toFixed(2)}/{s.unit}
+                      {s.tiers.length > 0 ? " ⚡ tiers" : ""}
                     </option>
                   ))}
                 </select>
+                {/* Tier breakdown for selected SKU */}
+                {selectedSkuForProduct && selectedSkuForProduct.tiers.length > 0 && (
+                  <div className="rounded-md bg-secondary/30 px-3 py-2 text-xs space-y-1">
+                    <p className="font-medium text-muted-foreground">Tier pricing — price auto-updates as you change Min Qty:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-foreground">Base: ${parseFloat(selectedSkuForProduct.currentPrice).toFixed(2)}</span>
+                      {selectedSkuForProduct.tiers.map((t) => (
+                        <span key={t.minQty} className="text-emerald-400">
+                          Qty {t.minQty}+: ${parseFloat(t.price).toFixed(2)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {productForm.vendorSkuId && (
-                  <p className="text-xs text-emerald-500">Fields pre-filled from catalog. You can still edit them below.</p>
+                  <p className="text-xs text-emerald-500">Catalog fields pre-filled. Edit name or description if needed.</p>
                 )}
               </div>
-            )}
+            ) : buyVendorId ? (
+              <p className="text-xs text-muted-foreground italic">Loading vendor catalog…</p>
+            ) : null}
             <div className="space-y-1.5">
               <Label>Name *</Label>
               <Input value={productForm.name} onChange={setP("name")} placeholder="BPC-157 5mg" />
@@ -748,7 +804,16 @@ export default function AdminBuyDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Price per Unit ($) *</Label>
-                <Input type="number" step="0.01" value={productForm.pricePerUnit} onChange={setP("pricePerUnit")} placeholder="12.50" />
+                <Input
+                  type="number" step="0.01"
+                  value={productForm.pricePerUnit}
+                  onChange={setP("pricePerUnit")}
+                  placeholder="12.50"
+                  className={selectedSkuForProduct ? "border-emerald-500/50" : ""}
+                />
+                {selectedSkuForProduct && (
+                  <p className="text-xs text-emerald-500">Auto-set from tier pricing</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Unit</Label>
@@ -757,8 +822,8 @@ export default function AdminBuyDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Min Qty</Label>
-                <Input type="number" value={productForm.minQuantity} onChange={setP("minQuantity")} />
+                <Label>Min Qty {selectedSkuForProduct?.tiers.length ? "(affects tier price)" : ""}</Label>
+                <Input type="number" value={productForm.minQuantity} onChange={handleProductQtyChange} />
               </div>
               <div className="space-y-1.5">
                 <Label>Max Qty</Label>

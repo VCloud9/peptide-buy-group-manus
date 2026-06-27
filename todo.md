@@ -230,3 +230,13 @@
 - [x] Vendor Detail SKU catalog: add alias field to SKU edit dialog
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 18 — Vendor Catalog SKU Picker in Add Product
+
+- [x] Add Product dialog: when buy has a vendor, show searchable SKU dropdown from vendor catalog
+- [x] Auto-fill product name, unit, and price when SKU is selected
+- [x] Price updates dynamically based on tier pricing as quantity changes
+- [x] Show tier breakdown (e.g. "Tier @ qty 20: $X") below price field
+- [x] Still allow manual entry if no vendor is linked to the buy
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

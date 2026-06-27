@@ -81,6 +81,7 @@ import {
   upsertSkuTiers,
   calcEffectivePrice,
   searchSkusAcrossVendors,
+  getSkusWithTiersForVendor,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -1369,6 +1370,13 @@ export const appRouter = router({
       .input(z.object({ vendorId: z.number(), includeInactive: z.boolean().optional() }))
       .query(async ({ input }) => {
         return getSkusByVendor(input.vendorId, input.includeInactive ?? false);
+      }),
+    // Returns all active SKUs for a vendor, each with their full tier list.
+    // Used by the Add Product dialog to show a searchable catalog with live tier pricing.
+    listSkusWithTiers: adminProcedure
+      .input(z.object({ vendorId: z.number() }))
+      .query(async ({ input }) => {
+        return getSkusWithTiersForVendor(input.vendorId);
       }),
     getSku: adminProcedure
       .input(z.object({ id: z.number() }))
