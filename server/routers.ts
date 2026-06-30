@@ -244,14 +244,54 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await createGroupBuy({
+        const newId = await createGroupBuy({
           ...input,
           moqTarget: input.moqTarget,
           endDate: input.endDate ? new Date(input.endDate) : undefined,
           createdBy: ctx.user.id,
           status: "Draft",
         });
-        return { success: true };
+        return { success: true, id: newId };
+      }),
+
+    // Create a draft buy pre-loaded with products from the Price Finder basket
+    createFromBasket: adminProcedure
+      .input(
+        z.object({
+          title: z.string().optional(),
+          items: z.array(
+            z.object({
+              vendorSkuId: z.number().int(),
+              name: z.string().min(1),
+              unit: z.string().default("vial"),
+              pricePerUnit: z.string(),
+              minQuantity: z.number().int().min(1).default(1),
+            })
+          ).min(1),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const title = input.title ?? `Basket Buy — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+        const buyId = await createGroupBuy({
+          title,
+          moqTarget: "0",
+          createdBy: ctx.user.id,
+          status: "Draft",
+        });
+        // Create all products in parallel
+        await Promise.all(
+          input.items.map((item) =>
+            createProduct({
+              groupBuyId: buyId,
+              vendorSkuId: item.vendorSkuId,
+              name: item.name,
+              unit: item.unit,
+              pricePerUnit: item.pricePerUnit,
+              minQuantity: item.minQuantity,
+            })
+          )
+        );
+        return { id: buyId };
       }),
 
     update: adminProcedure

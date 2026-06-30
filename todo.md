@@ -240,3 +240,13 @@
 - [x] Still allow manual entry if no vendor is linked to the buy
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 19 — Price Finder Redesign (PepCal-style) + Create Buy from Basket
+
+- [x] Redesign Price Finder: flat list layout — compound group header, vendor rows with Best badge, SKU code, tier-aware price, qty stepper (default 1), + Add button
+- [x] Floating bottom bar: item count + running total, click to open order summary panel
+- [x] Order summary side panel: compound, vendor, SKU, qty, price, line total, remove button, Export CSV
+- [x] Add createBuyFromBasket tRPC procedure: creates a draft buy + products from basket items
+- [x] "Create Buy" button in order summary panel → redirects to new draft Buy Detail page
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

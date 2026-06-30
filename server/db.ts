@@ -157,11 +157,11 @@ export async function getGroupBuyById(id: number) {
   return result[0];
 }
 
-export async function createGroupBuy(data: InsertGroupBuy) {
+export async function createGroupBuy(data: InsertGroupBuy): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.insert(groupBuys).values(data);
-  return result[0];
+  return (result[0] as any).insertId as number;
 }
 
 export async function updateGroupBuy(id: number, data: Partial<InsertGroupBuy>) {
