@@ -316,7 +316,14 @@ export default function AdminVendorDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => { setEditForm({ ...vendor }); setEditVendor(true); }}>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+              const v = vendor as any;
+              setEditForm({
+                ...vendor,
+                negotiatedDiscountPct: v.negotiatedDiscountPct != null ? parseFloat(v.negotiatedDiscountPct) : null,
+              });
+              setEditVendor(true);
+            }}>
             <Edit2 size={13} /> Edit
           </Button>
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowImport(true)}>
