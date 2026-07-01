@@ -82,6 +82,7 @@ import {
   calcEffectivePrice,
   searchSkusAcrossVendors,
   getSkusWithTiersForVendor,
+  exportAllSkus,
 } from "./db";
 import {
   ghlOnMemberSignup,
@@ -1529,6 +1530,80 @@ export const appRouter = router({
         }
         return { added, updated, priceChanges, total: input.rows.length };
       }),
+    // ─── Global SKU Export / Import ──────────────────────────────────────────
+    exportAllSkus: adminProcedure
+      .query(async () => {
+        return exportAllSkus();
+      }),
+
+    bulkUpsertSkus: adminProcedure
+      .input(z.object({
+        rows: z.array(z.object({
+          vendorName: z.string().min(1),
+          skuCode: z.string().min(1),
+          name: z.string().min(1),
+          alias: z.string().nullable().optional(),
+          productLine: z.string().nullable().optional(),
+          unit: z.string().optional(),
+          currentPrice: z.string(),
+          minQuantity: z.number().int().min(1).optional(),
+          isActive: z.boolean().optional(),
+          tier1Qty: z.number().int().nullable().optional(),
+          tier1Price: z.string().nullable().optional(),
+          tier2Qty: z.number().int().nullable().optional(),
+          tier2Price: z.string().nullable().optional(),
+          tier3Qty: z.number().int().nullable().optional(),
+          tier3Price: z.string().nullable().optional(),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        let added = 0;
+        let updated = 0;
+        let priceChanges = 0;
+        let skipped = 0;
+
+        // Build vendor name → id map once
+        const allVendors = await getAllVendors();
+        const vendorMap = new Map(allVendors.map((v) => [v.name.toLowerCase().trim(), v.id]));
+
+        for (const row of input.rows) {
+          const vendorId = vendorMap.get(row.vendorName.toLowerCase().trim());
+          if (!vendorId) { skipped++; continue; }
+
+          const { priceChanged, skuId } = await upsertVendorSku(
+            {
+              vendorId,
+              skuCode: row.skuCode,
+              name: row.name,
+              currentPrice: row.currentPrice as any,
+              productLine: row.productLine ?? null,
+              unit: row.unit ?? "vial",
+              minQuantity: row.minQuantity ?? 1,
+              isActive: row.isActive !== false,
+            },
+            ctx.user.id
+          );
+
+          // Update alias separately (upsertVendorSku doesn't handle it)
+          if (row.alias !== undefined) {
+            await updateSku(skuId, { alias: row.alias ?? null } as any);
+          }
+
+          // Rebuild tiers from the 3 tier columns
+          const tiers: Array<{ minQty: number; price: string }> = [];
+          if (row.tier1Qty && row.tier1Price) tiers.push({ minQty: row.tier1Qty, price: row.tier1Price });
+          if (row.tier2Qty && row.tier2Price) tiers.push({ minQty: row.tier2Qty, price: row.tier2Price });
+          if (row.tier3Qty && row.tier3Price) tiers.push({ minQty: row.tier3Qty, price: row.tier3Price });
+          if (tiers.length > 0) await upsertSkuTiers(skuId, tiers);
+
+          if (priceChanged) priceChanges++;
+          // Determine if new or updated by checking if it existed before
+          const wasNew = !priceChanged && (await getSkuById(skuId))?.name === row.name;
+          if (wasNew) updated++; else added++;
+        }
+        return { added, updated, priceChanges, skipped, total: input.rows.length };
+      }),
+
     // ─── SKU Price Tiers ─────────────────────────────────────────────────────
     listSkuTiers: adminProcedure
       .input(z.object({ vendorSkuId: z.number() }))

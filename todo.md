@@ -250,3 +250,12 @@
 - [x] "Create Buy" button in order summary panel → redirects to new draft Buy Detail page
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 20 — Global SKU Catalog Export / Import
+
+- [x] Backend: exportAllSkus procedure — returns all vendor SKUs with tiers as flat rows (vendor_name, sku_code, name, alias, unit, current_price, min_quantity, is_active, tier1_qty, tier1_price, tier2_qty, tier2_price, tier3_qty, tier3_price)
+- [x] Backend: bulkUpsertSkus procedure — accepts CSV rows, matches on vendor_name+sku_code, upserts SKU fields + tiers, returns counts (updated, created, skipped)
+- [x] Admin Vendors page: "Export All SKUs" button — downloads global CSV
+- [x] Admin Vendors page: "Import / Update SKUs" button — opens column-mapping dialog, shows preview, confirms upsert
+- [x] Run pnpm test — all tests pass
+- [x] Save checkpoint + push to GitHub

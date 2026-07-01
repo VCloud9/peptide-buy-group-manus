@@ -1058,3 +1058,84 @@ export async function getSkusWithTiersForVendor(vendorId: number): Promise<
 
   return skus.map((s) => ({ ...s, tiers: tierMap.get(s.id) ?? [] }));
 }
+
+/**
+ * Export all vendor SKUs (all vendors, including inactive) with their tiers.
+ * Returns flat rows suitable for CSV export and re-import.
+ */
+export async function exportAllSkus(): Promise<
+  Array<{
+    vendorName: string;
+    skuCode: string;
+    name: string;
+    alias: string | null;
+    productLine: string | null;
+    unit: string;
+    currentPrice: string;
+    minQuantity: number;
+    isActive: boolean;
+    tier1Qty: number | null;
+    tier1Price: string | null;
+    tier2Qty: number | null;
+    tier2Price: string | null;
+    tier3Qty: number | null;
+    tier3Price: string | null;
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({
+      vendorName: vendors.name,
+      skuCode: vendorSkus.skuCode,
+      name: vendorSkus.name,
+      alias: vendorSkus.alias,
+      productLine: vendorSkus.productLine,
+      unit: vendorSkus.unit,
+      currentPrice: vendorSkus.currentPrice,
+      minQuantity: vendorSkus.minQuantity,
+      isActive: vendorSkus.isActive,
+      skuId: vendorSkus.id,
+    })
+    .from(vendorSkus)
+    .innerJoin(vendors, eq(vendorSkus.vendorId, vendors.id))
+    .orderBy(vendors.name, vendorSkus.productLine, vendorSkus.name);
+
+  if (rows.length === 0) return [];
+
+  const skuIds = rows.map((r) => r.skuId);
+  const allTiers = await db
+    .select()
+    .from(vendorSkuTiers)
+    .where(sql`${vendorSkuTiers.vendorSkuId} IN (${sql.join(skuIds.map((id) => sql`${id}`), sql`, `)})`)
+    .orderBy(vendorSkuTiers.vendorSkuId, vendorSkuTiers.minQty);
+
+  const tierMap = new Map<number, Array<{ minQty: number; price: string }>>();
+  for (const t of allTiers) {
+    const list = tierMap.get(t.vendorSkuId) ?? [];
+    list.push({ minQty: t.minQty, price: t.price as string });
+    tierMap.set(t.vendorSkuId, list);
+  }
+
+  return rows.map((row) => {
+    const tiers = tierMap.get(row.skuId) ?? [];
+    return {
+      vendorName: row.vendorName,
+      skuCode: row.skuCode,
+      name: row.name,
+      alias: row.alias ?? null,
+      productLine: row.productLine ?? null,
+      unit: row.unit ?? "vial",
+      currentPrice: row.currentPrice as string,
+      minQuantity: row.minQuantity ?? 1,
+      isActive: row.isActive ?? true,
+      tier1Qty: tiers[0]?.minQty ?? null,
+      tier1Price: tiers[0]?.price ?? null,
+      tier2Qty: tiers[1]?.minQty ?? null,
+      tier2Price: tiers[1]?.price ?? null,
+      tier3Qty: tiers[2]?.minQty ?? null,
+      tier3Price: tiers[2]?.price ?? null,
+    };
+  });
+}
