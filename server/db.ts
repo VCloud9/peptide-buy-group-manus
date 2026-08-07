@@ -1,5 +1,6 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   GroupBuy,
   InsertGroupBuy,
@@ -46,7 +47,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, { ssl: "require", max: 10 });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -85,7 +87,13 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!values.lastSignedIn) values.lastSignedIn = new Date();
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db
+    .insert(users)
+    .values(values)
+    .onConflictDoUpdate({
+      target: users.openId,
+      set: updateSet as Partial<typeof users.$inferInsert>,
+    });
 }
 
 export async function getUserByEmail(email: string) {
@@ -160,8 +168,8 @@ export async function getGroupBuyById(id: number) {
 export async function createGroupBuy(data: InsertGroupBuy): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(groupBuys).values(data);
-  return (result[0] as any).insertId as number;
+  const [row] = await db.insert(groupBuys).values(data).returning({ id: groupBuys.id });
+  return row.id;
 }
 
 export async function updateGroupBuy(id: number, data: Partial<InsertGroupBuy>) {
@@ -281,9 +289,8 @@ export async function getOrderById(id: number) {
 export async function createOrder(data: InsertOrder) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(orders).values(data);
-  const insertId = (result[0] as any).insertId as number;
-  return insertId;
+  const [row] = await db.insert(orders).values(data).returning({ id: orders.id });
+  return row.id;
 }
 
 export async function updateOrder(id: number, data: Partial<InsertOrder>) {
@@ -368,9 +375,8 @@ export async function getTestResultById(id: number) {
 export async function createTestResult(data: InsertTestResult) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(testResults).values(data);
-  const insertId = (result[0] as any).insertId as number;
-  return insertId;
+  const [row] = await db.insert(testResults).values(data).returning({ id: testResults.id });
+  return row.id;
 }
 
 export async function updateTestResult(id: number, data: Partial<InsertTestResult>) {
@@ -587,14 +593,14 @@ export async function createMembershipRequest(data: {
 }): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const [result] = await db.insert(membershipRequests).values({
+  const [row] = await db.insert(membershipRequests).values({
     name: data.name,
     email: data.email,
     skoolUsername: data.skoolUsername ?? null,
     message: data.message ?? null,
     status: "pending",
-  });
-  return (result as any).insertId;
+  }).returning({ id: membershipRequests.id });
+  return row.id;
 }
 
 export async function getMembershipRequestByEmail(email: string): Promise<MembershipRequest | null> {
@@ -644,8 +650,8 @@ export async function getVendorById(id: number) {
 export async function createVendor(data: InsertVendor): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const [result] = await db.insert(vendors).values(data);
-  return (result as any).insertId as number;
+  const [row] = await db.insert(vendors).values(data).returning({ id: vendors.id });
+  return row.id;
 }
 
 export async function updateVendor(id: number, data: Partial<InsertVendor>) {
@@ -683,8 +689,8 @@ export async function getSkuById(id: number) {
 export async function createSku(data: InsertVendorSku): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const [result] = await db.insert(vendorSkus).values(data);
-  return (result as any).insertId as number;
+  const [row] = await db.insert(vendorSkus).values(data).returning({ id: vendorSkus.id });
+  return row.id;
 }
 
 export async function updateSku(id: number, data: Partial<InsertVendorSku>) {
@@ -817,7 +823,8 @@ export async function upsertVendorRating(data: InsertVendorRating) {
   await db
     .insert(vendorRatings)
     .values(data)
-    .onDuplicateKeyUpdate({
+    .onConflictDoUpdate({
+      target: [vendorRatings.vendorId, vendorRatings.userId, vendorRatings.groupBuyId],
       set: {
         qualityScore: data.qualityScore,
         commScore: data.commScore,
@@ -833,8 +840,8 @@ export async function upsertVendorRating(data: InsertVendorRating) {
 export async function insertSkuCoa(data: InsertVendorSkuCoa): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const [result] = await db.insert(vendorSkuCoas).values(data);
-  return (result as any).insertId as number;
+  const [row] = await db.insert(vendorSkuCoas).values(data).returning({ id: vendorSkuCoas.id });
+  return row.id;
 }
 
 export async function listSkuCoas(vendorSkuId: number): Promise<VendorSkuCoa[]> {

@@ -397,7 +397,7 @@ export const appRouter = router({
           status: "Draft",
           createdBy: source.createdBy,
         });
-        const newId = (result as any).insertId as number;
+        const newId = result;
         // Copy products
         const sourceProducts = await getProductsByGroupBuy(input.id);
         await Promise.all(
