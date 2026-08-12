@@ -175,33 +175,33 @@
 
 ## Round 12 — Vendor SKU COA Upload
 
-- [ ] Schema: add vendor_sku_coas table (vendorSkuId, filename, fileKey, fileUrl, labName, purityPct, testedAt, uploadedBy, notes)
-- [ ] Backend: vendors.uploadSkuCoa procedure — accept base64/multipart, upload to S3, insert row
-- [ ] Backend: vendors.listSkuCoas procedure — list COAs for a given vendorSkuId
-- [ ] Backend: vendors.deleteSkuCoa procedure — admin-only, delete S3 object + DB row
-- [ ] Admin UI: COA panel on VendorDetail SKU rows — expandable section per SKU showing COA list
-- [ ] Admin UI: Upload COA button — file picker (PDF/image), lab name, purity %, tested date, notes
-- [ ] Admin UI: COA list — filename, lab, purity badge, date, download link, delete button
-- [ ] Admin UI: Purity badge on SKU row — show latest purity % inline on the catalog table
-- [ ] Tests: COA upload and list procedures
-- [ ] Checkpoint + GitHub push
+- [x] Schema: add vendor_sku_coas table (vendorSkuId, filename, fileKey, fileUrl, labName, purityPct, testedAt, uploadedBy, notes)
+- [x] Backend: vendors.uploadSkuCoa procedure — accept base64/multipart, upload to S3, insert row
+- [x] Backend: vendors.listSkuCoas procedure — list COAs for a given vendorSkuId
+- [x] Backend: vendors.deleteSkuCoa procedure — admin-only, delete S3 object + DB row
+- [x] Admin UI: COA panel on VendorDetail SKU rows — expandable section per SKU showing COA list
+- [x] Admin UI: Upload COA button — file picker (PDF/image), lab name, purity %, tested date, notes
+- [x] Admin UI: COA list — filename, lab, purity badge, date, download link, delete button
+- [x] Admin UI: Purity badge on SKU row — show latest purity % inline on the catalog table
+- [x] Tests: COA upload and list procedures
+- [x] Checkpoint + GitHub push
 
 ## Round 14 — Quantity Discount Tiers + Negotiated Vendor Discount
 
-- [ ] Schema: add negotiatedDiscountPct (decimal, nullable) to vendors table
-- [ ] Schema: add vendor_sku_tiers table (id, vendorSkuId, minQty, price)
-- [ ] Migration: generate and apply SQL
-- [ ] Backend: update vendor create/update procedures to accept negotiatedDiscountPct
-- [ ] Backend: update vendor SKU import to upsert tiers from CSV tier columns
-- [ ] Backend: add listSkuTiers procedure
-- [ ] Backend: update listVendorSkus to include tiers and effective price after discount
-- [ ] CSV: re-extract all 3 price tiers from all 7 vendor PDFs
-- [ ] Admin UI: negotiatedDiscountPct field on vendor create/edit form with % badge
-- [ ] Admin UI: effective price display on vendor detail SKU table (list → effective)
-- [ ] Admin UI: tier table expandable on SKU row showing qty thresholds and prices
-- [ ] Admin UI: effective price shown in buy catalog picker
-- [ ] Tests: tier upsert and effective price calculation
-- [ ] Checkpoint + GitHub push
+- [x] Schema: add negotiatedDiscountPct (decimal, nullable) to vendors table
+- [x] Schema: add vendor_sku_tiers table (id, vendorSkuId, minQty, price)
+- [x] Migration: generate and apply SQL
+- [x] Backend: update vendor create/update procedures to accept negotiatedDiscountPct
+- [x] Backend: update vendor SKU import to upsert tiers from CSV tier columns
+- [x] Backend: add listSkuTiers procedure
+- [x] Backend: update listVendorSkus to include tiers and effective price after discount
+- [x] CSV: re-extract all 3 price tiers from all 7 vendor PDFs
+- [x] Admin UI: negotiatedDiscountPct field on vendor create/edit form with % badge
+- [x] Admin UI: effective price display on vendor detail SKU table (list → effective)
+- [x] Admin UI: tier table expandable on SKU row showing qty thresholds and prices
+- [x] Admin UI: effective price shown in buy catalog picker
+- [x] Tests: tier upsert and effective price calculation
+- [x] Checkpoint + GitHub push
 
 ## Round 15 — Cross-Vendor Price Finder
 
@@ -263,10 +263,10 @@
 ## Round 21 — Railway / Supabase Deployment
 
 - [x] Identify the correct Railway project and service for the Peptide Buy Group repository — all three existing Railway services were verified; none is linked to VCloud9/peptide-buy-group-manus
-- [ ] Confirm the Railway service is linked to VCloud9/peptide-buy-group-manus on main
+- [x] Confirm the Railway service is linked to VCloud9/peptide-buy-group-manus on main
 - [x] Prepare and validate the required Railway environment-variable checklist, including Supabase DATABASE_URL and Manus OAuth settings
 - [x] Link the correct GitHub repository and trigger a fresh deployment after user approval
 - [x] Add `/api/health` production health endpoint required by Railway deployment checks
 - [x] Fix Railway Dockerfile to retain Vite runtime dependency required by the compiled server entrypoint
 - [x] Verify Supabase connectivity through a database-backed Railway health check
-- [ ] Verify fresh Railway deployment logs, health check, OAuth configuration, and Supabase database connectivity
+- [x] Verify fresh Railway deployment logs, health check, OAuth configuration, and Supabase database connectivity
