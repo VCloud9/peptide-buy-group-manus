@@ -278,8 +278,8 @@
 - [x] Correct the external OAuth portal/browser configuration causing the Railway frontend Invalid URL error — replaced the external Manus OAuth browser flow with Supabase Auth login
 - [x] Create and secure a Supabase Storage bucket for COA documents — created the private `coa-documents` bucket
 - [x] Add Supabase Storage configuration and migrate COA upload/download code away from Manus storage
-- [ ] Transfer existing COA files, update database references, and validate access
-- [ ] Run tests, save checkpoint, push to GitHub, and verify the Railway deployment
+- [x] Transfer existing COA files, update database references, and validate access — source and migrated databases contained zero COA records; private bucket created with no documents requiring transfer
+- [x] Run tests, save checkpoint, push to GitHub, and verify the Railway deployment
 
 ## Round 23 — Supabase Auth Migration
 
@@ -287,4 +287,4 @@
 - [x] Configure Supabase Auth redirect URLs and Railway Supabase credentials
 - [x] Replace Manus OAuth browser and server session handling with Supabase Auth JWT verification
 - [x] Preserve existing user roles by mapping Supabase identities to platform users
-- [ ] Verify authenticated member and admin flows on the public Railway domain
+- [x] Verify authenticated member and admin flows on the public Railway domain — completed Supabase magic-link sign-in; authenticated dashboard and preserved Admin navigation verified on Railway
