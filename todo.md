@@ -267,4 +267,5 @@
 - [x] Prepare and validate the required Railway environment-variable checklist, including Supabase DATABASE_URL and Manus OAuth settings
 - [x] Link the correct GitHub repository and trigger a fresh deployment after user approval
 - [x] Add `/api/health` production health endpoint required by Railway deployment checks
+- [x] Fix Railway Dockerfile to retain Vite runtime dependency required by the compiled server entrypoint
 - [ ] Verify fresh Railway deployment logs, health check, OAuth configuration, and Supabase database connectivity

@@ -25,7 +25,9 @@ RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 
 COPY package.json pnpm-lock.yaml ./
 COPY patches/ ./patches/
-RUN pnpm install --frozen-lockfile --prod
+# server/_core/vite.ts is imported by the compiled server entrypoint even in
+# production mode, so Vite must remain present in the runtime image.
+RUN pnpm install --frozen-lockfile
 
 # Copy built artifacts
 COPY --from=builder /app/dist ./dist
