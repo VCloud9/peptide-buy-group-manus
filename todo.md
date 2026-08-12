@@ -297,4 +297,5 @@
 - [x] Remove legacy Manus browser runtime assets from the Railway production build
 - [x] Replace Manus Storage image references and remove Manus analytics/runtime hooks from the external build
 - [x] Remove inactive Manus OAuth and storage proxy routes from the Railway server entrypoint
-- [ ] Verify public access and Supabase sign-in on peptide-buy.com
+- [x] Verify public access and Supabase sign-in on peptide-buy.com — authenticated member dashboard and preserved admin access verified on the independent domain
+- [x] Inspect Supabase Auth email rate limits and complete the final magic-link delivery test — identified the default 2 emails/hour limit; root-domain magic-link sign-in completed successfully
