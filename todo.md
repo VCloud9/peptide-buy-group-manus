@@ -288,3 +288,13 @@
 - [x] Replace Manus OAuth browser and server session handling with Supabase Auth JWT verification
 - [x] Preserve existing user roles by mapping Supabase identities to platform users
 - [x] Verify authenticated member and admin flows on the public Railway domain — completed Supabase magic-link sign-in; authenticated dashboard and preserved Admin navigation verified on Railway
+
+## Round 24 — Independent Railway Domain
+
+- [x] Inspect the Railway service naming and available independent domain options — the Railway default hostname derives from the source-created service name `peptide-buy-group-manus`; Railway supports a renamed generated hostname and a fully independent custom domain
+- [x] Rename the Railway service and use peptide-buy.com as the canonical public address
+- [x] Attach peptide-buy.com to Railway, document the required root-domain DNS record, and update Supabase Auth redirect URLs
+- [x] Remove legacy Manus browser runtime assets from the Railway production build
+- [x] Replace Manus Storage image references and remove Manus analytics/runtime hooks from the external build
+- [x] Remove inactive Manus OAuth and storage proxy routes from the Railway server entrypoint
+- [ ] Verify public access and Supabase sign-in on peptide-buy.com

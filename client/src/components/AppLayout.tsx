@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { BrandMark } from "@/components/BrandMark";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
@@ -119,7 +120,7 @@ export function AppLayout({ children, showAdmin = false }: Props) {
         <div className="container h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href={isAdmin && showAdmin ? "/admin" : "/dashboard"}>
-            <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
+            <BrandMark />
           </Link>
 
           {/* Desktop nav */}

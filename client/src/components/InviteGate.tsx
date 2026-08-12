@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandMark } from "@/components/BrandMark";
 import { toast } from "sonner";
 import { KeyRound, ShieldCheck } from "lucide-react";
 
@@ -44,11 +45,7 @@ export default function InviteGate({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="flex justify-center">
-          <img
-            src="/manus-storage/pbg-logo-v2_631d4d9d.png"
-            alt="Peptide Buy Group"
-            className="h-12 w-auto"
-          />
+          <BrandMark />
         </div>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">

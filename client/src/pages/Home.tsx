@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { BrandMark } from "@/components/BrandMark";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default function Home() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
         <div className="container h-14 flex items-center justify-between">
           <span className="flex items-center">
-            <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
+            <BrandMark />
           </span>
           <div className="flex items-center gap-3">
             {!loading && !isAuthenticated && (
@@ -92,11 +93,7 @@ export default function Home() {
         <div className="relative container py-24 md:py-32 text-center space-y-6">
           {/* Hero logo lockup */}
           <div className="flex justify-center mb-4">
-            <img
-              src="/manus-storage/pbg-logo-v2_631d4d9d.png"
-              alt="Peptide Buy Group"
-              className="h-16 md:h-20 w-auto"
-            />
+            <BrandMark className="text-xl md:text-2xl" />
           </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-2">
             <ShieldCheck size={12} />

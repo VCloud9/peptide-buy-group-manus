@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { BrandMark } from "@/components/BrandMark";
 
 // ─── FAQ Data ─────────────────────────────────────────────────────────────────
 
@@ -380,7 +381,7 @@ export default function FAQPage() {
         <div className="container h-14 flex items-center justify-between">
           <Link href="/">
             <span className="flex items-center cursor-pointer">
-              <img src="/manus-storage/pbg-logo-v2_631d4d9d.png" alt="Peptide Buy Group" className="h-8 w-auto" />
+              <BrandMark />
             </span>
           </Link>
           <div className="flex items-center gap-3">
