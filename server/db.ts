@@ -103,6 +103,54 @@ export async function getUserByEmail(email: string) {
   return result[0];
 }
 
+export async function getOrCreateSupabaseUser(identity: {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while resolving authenticated user");
+
+  const existingById = await getUserByOpenId(identity.id);
+  const now = new Date();
+  const email = identity.email?.trim().toLowerCase() || null;
+  const name = identity.name?.trim() || email?.split("@")[0] || "Member";
+
+  if (existingById) {
+    const [updated] = await db
+      .update(users)
+      .set({ name, email, loginMethod: "supabase", lastSignedIn: now, updatedAt: now })
+      .where(eq(users.id, existingById.id))
+      .returning();
+    return updated;
+  }
+
+  const existingByEmail = email ? await getUserByEmail(email) : undefined;
+  if (existingByEmail) {
+    // Keep the existing row and role so previously migrated members—including
+    // the owner/admin—retain their permissions after their first Supabase login.
+    const [updated] = await db
+      .update(users)
+      .set({ openId: identity.id, name, email, loginMethod: "supabase", lastSignedIn: now, updatedAt: now })
+      .where(eq(users.id, existingByEmail.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(users)
+    .values({
+      openId: identity.id,
+      name,
+      email,
+      loginMethod: "supabase",
+      role: "user",
+      lastSignedIn: now,
+    })
+    .returning();
+  return created;
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
@@ -852,6 +900,13 @@ export async function listSkuCoas(vendorSkuId: number): Promise<VendorSkuCoa[]> 
     .from(vendorSkuCoas)
     .where(eq(vendorSkuCoas.vendorSkuId, vendorSkuId))
     .orderBy(desc(vendorSkuCoas.createdAt));
+}
+
+export async function getSkuCoaById(id: number): Promise<VendorSkuCoa | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(vendorSkuCoas).where(eq(vendorSkuCoas.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function deleteSkuCoa(id: number): Promise<void> {

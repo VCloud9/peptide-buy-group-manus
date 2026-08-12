@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import HowToJoin from "./pages/HowToJoin";
 import FAQPage from "./pages/FAQ";
+import Login from "./pages/Login";
 
 // Member pages
 import MemberDashboard from "./pages/member/Dashboard";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/join" component={HowToJoin} />
       <Route path="/faq" component={FAQPage} />
+      <Route path="/login" component={Login} />
 
       {/* Member — gated behind invite code */}
       <Route path="/dashboard">{() => <InviteGate><MemberDashboard /></InviteGate>}</Route>

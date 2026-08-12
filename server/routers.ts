@@ -75,6 +75,7 @@ import {
   upsertVendorRating,
   insertSkuCoa,
   listSkuCoas,
+  getSkuCoaById,
   deleteSkuCoa,
   getLatestSkuPurity,
   getTiersBySkuId,
@@ -105,7 +106,7 @@ import { insertGhlSyncLog, getRecentGhlSyncLogs } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { storagePut } from "./storage";
+import { storageDelete, storageGetSignedUrl, storagePut } from "./storage";
 import { ENV } from "./_core/env";
 
 // ─── Admin guard ──────────────────────────────────────────────────────────────
@@ -857,8 +858,12 @@ export const appRouter = router({
       .input(z.object({ groupBuyId: z.number() }))
       .query(async ({ input }) => {
         const results = await getTestResultsByGroupBuy(input.groupBuyId);
-        // Only return published results to non-admins (handled on frontend via role check)
-        return results;
+        return Promise.all(results.map(async (result) => ({
+          ...result,
+          coaFileUrl: result.coaFileKey
+            ? await storageGetSignedUrl(result.coaFileKey)
+            : result.coaFileUrl,
+        })));
       }),
 
     create: adminProcedure
@@ -1688,7 +1693,6 @@ export const appRouter = router({
         notes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { storagePut } = await import("./storage");
         const buffer = Buffer.from(input.fileBase64, "base64");
         const fileKey = `vendor-coas/${input.vendorSkuId}/${Date.now()}-${input.filename}`;
         const { key, url } = await storagePut(fileKey, buffer, input.mimeType);
@@ -1709,12 +1713,18 @@ export const appRouter = router({
     listSkuCoas: adminProcedure
       .input(z.object({ vendorSkuId: z.number() }))
       .query(async ({ input }) => {
-        return listSkuCoas(input.vendorSkuId);
+        const coas = await listSkuCoas(input.vendorSkuId);
+        return Promise.all(coas.map(async (coa) => ({
+          ...coa,
+          fileUrl: await storageGetSignedUrl(coa.fileKey),
+        })));
       }),
 
     deleteSkuCoa: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
+        const coa = await getSkuCoaById(input.id);
+        if (coa) await storageDelete(coa.fileKey);
         await deleteSkuCoa(input.id);
         return { success: true };
       }),
