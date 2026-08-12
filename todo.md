@@ -259,3 +259,12 @@
 - [x] Admin Vendors page: "Import / Update SKUs" button — opens column-mapping dialog, shows preview, confirms upsert
 - [x] Run pnpm test — all tests pass
 - [x] Save checkpoint + push to GitHub
+
+## Round 21 — Railway / Supabase Deployment
+
+- [x] Identify the correct Railway project and service for the Peptide Buy Group repository — all three existing Railway services were verified; none is linked to VCloud9/peptide-buy-group-manus
+- [ ] Confirm the Railway service is linked to VCloud9/peptide-buy-group-manus on main
+- [x] Prepare and validate the required Railway environment-variable checklist, including Supabase DATABASE_URL and Manus OAuth settings
+- [x] Link the correct GitHub repository and trigger a fresh deployment after user approval
+- [x] Add `/api/health` production health endpoint required by Railway deployment checks
+- [ ] Verify fresh Railway deployment logs, health check, OAuth configuration, and Supabase database connectivity
