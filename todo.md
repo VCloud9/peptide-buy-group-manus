@@ -270,3 +270,13 @@
 - [x] Fix Railway Dockerfile to retain Vite runtime dependency required by the compiled server entrypoint
 - [x] Verify Supabase connectivity through a database-backed Railway health check
 - [x] Verify fresh Railway deployment logs, health check, OAuth configuration, and Supabase database connectivity
+
+## Round 22 — Railway Domain and COA Storage Migration
+
+- [x] Inspect the existing Railway service domain settings and current COA storage records — no public domain exists; Supabase and preserved source dump both show zero COA records to transfer
+- [ ] Create a public Railway domain and register its OAuth callback URL
+- [ ] Correct the external OAuth portal/browser configuration causing the Railway frontend Invalid URL error
+- [ ] Create and secure a Supabase Storage bucket for COA documents
+- [ ] Add Supabase Storage configuration and migrate COA upload/download code away from Manus storage
+- [ ] Transfer existing COA files, update database references, and validate access
+- [ ] Run tests, save checkpoint, push to GitHub, and verify the Railway deployment
